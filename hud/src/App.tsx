@@ -44,7 +44,7 @@ export default function App() {
         {message.state === 'listening' && (
           <div className="stack">
             <TextView textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.ACCENT}>● Listening</TextView>
-            <TextView textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="partial">
+            <TextView textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="clamp2">
               {message.partial}
             </TextView>
           </div>
@@ -59,7 +59,9 @@ export default function App() {
 
         {message.state === 'card' && (
           <div className="stack">
-            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>Q {message.question}</TextView>
+            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="clamp2">
+              Q {message.question}
+            </TextView>
             <hr className="rule" />
             <TextView textStyle={TextStyle.HEADING1}>{message.lead}</TextView>
             {(detail ? message.points : message.points?.slice(0, 2))?.map(point => (
