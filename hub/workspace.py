@@ -17,6 +17,7 @@ class Workspace(BaseModel):
     notes: list[PageNotes] = []
     attempts: dict[str, int] = {}
     stt_terms: list[str] = []  # picked by the model during prep
+    talk_minutes: float = 0  # planned talk length for the presentation timer; 0 = off
 
     def save(self, data_dir: Path) -> None:
         data_dir.mkdir(parents=True, exist_ok=True)

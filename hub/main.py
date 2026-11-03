@@ -76,6 +76,7 @@ def status() -> dict:
         "model": getattr(model, "model", config.SPARK_MODEL),
         "stt": config.stt_available(),
         "mode": pipeline.mode,
+        "talk_minutes": workspace.talk_minutes,
         "listening": pipeline.listening,
         "hud_clients": len(bus.clients),
         "prep": prep_status,
@@ -282,6 +283,25 @@ class ModeRequest(BaseModel):
 async def set_mode(body: ModeRequest) -> dict:
     await pipeline.set_mode(body.mode)
     return {"mode": pipeline.mode}
+
+
+class TalkRequest(BaseModel):
+    minutes: float
+
+
+@app.post("/api/talk")
+def set_talk(body: TalkRequest) -> dict:
+    workspace.talk_minutes = max(0.0, body.minutes)
+    if pipeline.tracker:
+        pipeline.tracker.target_s = int(workspace.talk_minutes * 60)
+    save()
+    return {"minutes": workspace.talk_minutes}
+
+
+@app.post("/api/talk/start")
+async def start_talk() -> dict:
+    await pipeline.start_talk()
+    return {"started": True}
 
 
 @app.post("/api/listen")

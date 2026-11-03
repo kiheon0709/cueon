@@ -55,3 +55,15 @@ def test_tracker_follows_talk_and_flags_missed_points():
     assert update.moved and update.page == 2
     assert update.missed == ["Q&A decides the score"]
     assert tracker.hud()["points"][0]["done"]
+
+
+def test_talk_timer_reports_pace_and_short_version():
+    notes = [PageNotes(page=n, points=[f"point {n}"], short=f"short {n}") for n in range(1, 5)]
+    tracker = Tracker(notes, {}, target_s=120)
+    assert tracker.hud().get("left_s") is None  # clock starts with the first sentence
+    tracker.start(now=1000)
+    on_time = tracker.hud(now=1020)
+    assert on_time["left_s"] == 100 and on_time["pages_left"] == 3 and not on_time["behind"]
+    late = tracker.hud(now=1000 + 100)  # 100 s in, still on page 1 of 4
+    assert late["behind"] and late["low_time"] and late["short"] == "short 1"
+    assert late["ends_at"] == 1_120_000

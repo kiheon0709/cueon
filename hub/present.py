@@ -5,6 +5,8 @@ bridge line, a short version); live, each spoken sentence is compared with the n
 current page and tick off points. Moving on with points still open raises a "missed" cue.
 """
 
+import time
+
 from pydantic import BaseModel
 
 from hub.models import PageNotes
@@ -13,6 +15,7 @@ from hub.similarity import similarity
 COVER_THRESHOLD = 0.38  # sentence says this point
 MOVE_THRESHOLD = 0.30  # sentence belongs to another page
 STRONG_MOVE = 0.5  # move at once instead of waiting for a second sentence
+LOW_TIME_S = 60  # show the short version of the page when less than this is left
 
 
 class PageState(BaseModel):
@@ -31,7 +34,9 @@ class Update(BaseModel):
 
 
 class Tracker:
-    def __init__(self, notes: list[PageNotes], titles: dict[int, str]) -> None:
+    def __init__(self, notes: list[PageNotes], titles: dict[int, str], target_s: int = 0) -> None:
+        self.target_s = target_s  # planned talk length; 0 = no timer
+        self.started_at: float | None = None  # wall clock, set by the first sentence or start()
         self.pages = [
             PageState(
                 page=n.page,
@@ -55,10 +60,15 @@ class Tracker:
         scores.append(similarity(sentence, state.title) * 0.8)
         return max(scores)
 
+    def start(self, now: float | None = None) -> None:
+        self.started_at = now if now is not None else time.time()
+
     def hear(self, sentence: str) -> Update | None:
         state = self.current
         if state is None or not sentence.strip():
             return None
+        if self.started_at is None:
+            self.start()
 
         for i, point in enumerate(state.points):
             if similarity(sentence, point) >= COVER_THRESHOLD:
@@ -89,14 +99,35 @@ class Tracker:
                     state.covered[i] = True
         return Update(page=self.pages[index].page, moved=True, missed=missed)
 
-    def hud(self) -> dict:
+    def timing(self, now: float | None = None) -> dict:
+        """Time left and whether the talk is behind: fewer pages done than the clock says."""
+        if not self.target_s or self.started_at is None:
+            return {}
+        now = now if now is not None else time.time()
+        elapsed = now - self.started_at
+        left = self.target_s - elapsed
+        expected_index = elapsed / self.target_s * len(self.pages)
+        return {
+            "ends_at": int((self.started_at + self.target_s) * 1000),  # the glasses count down locally
+            "left_s": int(left),
+            "pages_left": len(self.pages) - self.index - 1,
+            "behind": self.index + 1 < expected_index - 0.5,
+            "low_time": left < LOW_TIME_S,
+        }
+
+    def hud(self, now: float | None = None) -> dict:
         state = self.current
         if state is None:
             return {}
-        return {
+        timing = self.timing(now)
+        fields = {
             "page": state.page,
             "total": len(self.pages),
             "title": state.title,
             "points": [{"text": p, "done": d} for p, d in zip(state.points, state.covered)],
             "bridge": state.bridge,
+            **timing,
         }
+        if timing.get("low_time") and state.short:
+            fields["short"] = state.short  # running out of time: say this instead
+        return fields

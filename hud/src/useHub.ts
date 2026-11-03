@@ -30,6 +30,11 @@ export interface HudMessage {
   points?: string[] | CuePoint[];
   bridge?: string;
   missed?: string[];
+  // Talk timer
+  ends_at?: number;
+  pages_left?: number;
+  behind?: boolean;
+  short?: string;
   /** Sent on (re)connect: the state was already on screen, so don't ack it as a new render. */
   replay?: boolean;
 }

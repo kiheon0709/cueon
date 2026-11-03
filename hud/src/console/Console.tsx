@@ -409,6 +409,18 @@ function Live({status, run}: {status: Status | null; run: Run}) {
           </button>
         ) : (
           <>
+            <label className="hint">
+              Talk length{' '}
+              <input
+                type="number"
+                min={0}
+                step={0.5}
+                defaultValue={status?.talk_minutes || ''}
+                placeholder="min"
+                onBlur={e => run(() => api('/api/talk', {method: 'POST', json: {minutes: +e.target.value || 0}}))}
+              />
+            </label>
+            <button onClick={() => run(() => api('/api/talk/start', {method: 'POST'}))}>Start clock</button>
             <button className="ghost" onClick={() => run(() => api('/api/page/-1', {method: 'POST'}))}>◀ Page</button>
             <button className="ghost" onClick={() => run(() => api('/api/page/1', {method: 'POST'}))}>Page ▶</button>
           </>

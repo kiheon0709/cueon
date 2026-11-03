@@ -37,6 +37,7 @@ export interface Status {
   model: string;
   stt: boolean;
   mode: 'qa' | 'present';
+  talk_minutes: number;
   listening: boolean;
   hud_clients: number;
   prep: {

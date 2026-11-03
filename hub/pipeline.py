@@ -121,7 +121,7 @@ class Pipeline:
         if mode == "present":
             main = self.ws.library.main()
             titles = {p.number: p.title for p in main.pages} if main else {}
-            self.tracker = Tracker(self.ws.notes, titles)
+            self.tracker = Tracker(self.ws.notes, titles, target_s=int(self.ws.talk_minutes * 60))
             await self.bus.show("present", **self.tracker.hud())
         else:
             await self.bus.show("idle")
@@ -195,6 +195,14 @@ class Pipeline:
             await self.bus.show("missed", missed=update.missed, **self.tracker.hud())
         elif update:
             await self.bus.show("present", **self.tracker.hud())
+
+    async def start_talk(self) -> None:
+        """Start the clock now (the presenter's first word also starts it)."""
+        if self.tracker is None:
+            await self.set_mode("present")
+        assert self.tracker is not None
+        self.tracker.start()
+        await self.bus.show("present", **self.tracker.hud())
 
     async def goto_page(self, delta: int) -> None:
         if self.tracker is None:

@@ -29,7 +29,7 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] Rejection rate and retries shown in the console
 
 ## 5. Presentation mode P2
-- [ ] Talk timer: target length, remaining time, "N min left, M pages to go"
+- [x] Talk timer: target length, remaining time, "N min left, M pages to go"
 
 ## 6. HUD / console UI-UX
 - [ ] HUD: confidence dot, tentative/live states, layout polish to spec (25px+ type, 5 lines max)

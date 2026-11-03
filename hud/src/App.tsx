@@ -5,8 +5,29 @@ import {type CuePoint, useHub} from './useHub';
 // Card dims after this long so the presenter looks back at the audience.
 const DIM_AFTER_MS = 10_000;
 
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [active]);
+  return now;
+}
+
+function clock(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
 export default function App() {
   const {message, connected, send} = useHub();
+  const now = useNow(!!message.ends_at);
+  const timer = message.ends_at ? (
+    <TextView textStyle={TextStyle.META1} textColor={message.behind ? TextColor.ACCENT : TextColor.SECONDARY}>
+      {clock(message.ends_at - now)} left · {message.pages_left} to go{message.behind ? ' · speed up' : ''}
+    </TextView>
+  ) : null;
   const answerPoints = (message.state === 'card' ? message.points : []) as string[] | undefined;
   const cuePoints = (message.state === 'present' || message.state === 'missed' ? message.points : []) as CuePoint[] | undefined;
   const [detail, setDetail] = useState(false);
@@ -108,9 +129,17 @@ export default function App() {
 
         {message.state === 'present' && (
           <div className="stack">
-            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
-              {message.page}/{message.total} · {message.title}
-            </TextView>
+            <div className="foot">
+              <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                {message.page}/{message.total} · {message.title}
+              </TextView>
+              {timer}
+            </div>
+            {message.short && (
+              <TextView textStyle={TextStyle.BODY1} textColor={TextColor.ACCENT}>
+                Short: {message.short}
+              </TextView>
+            )}
             {cuePoints?.map(point => (
               <TextView
                 key={point.text}
