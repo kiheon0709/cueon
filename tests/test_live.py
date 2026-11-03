@@ -67,3 +67,8 @@ def test_talk_timer_reports_pace_and_short_version():
     late = tracker.hud(now=1000 + 100)  # 100 s in, still on page 1 of 4
     assert late["behind"] and late["low_time"] and late["short"] == "short 1"
     assert late["ends_at"] == 1_120_000
+
+
+def test_swipe_without_notes_does_nothing():
+    tracker = Tracker([], {})
+    assert tracker.goto(1).page == 0 and tracker.hud() == {}

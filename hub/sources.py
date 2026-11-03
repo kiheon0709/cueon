@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 # Standalone numbers like 1.4, 30, 1,000, $0.18 — but not the 50 in "p50" or the 3 in "GPT3".
 _NUMBER = re.compile(r"(?<![A-Za-z\d])\d+(?:[.,]\d+)*")
-_SOURCE = re.compile(r"\s*([A-Za-z0-9_\-]+)\s+p\.?\s*(\d+)\s*")
+_SOURCE = re.compile(r"\s*([\w\-]+)\s+p\.?\s*(\d+)\s*")
 CSV_ROWS_PER_PAGE = 40
 
 Role = Literal["main", "evidence"]
@@ -77,9 +77,14 @@ class Library(BaseModel):
         return "\n\n".join(parts)
 
 
-def default_alias(filename: str) -> str:
-    stem = re.sub(r"[^A-Za-z0-9]+", "", Path(filename).stem)
-    return (stem[:6] or "DOC").upper()
+def default_alias(filename: str, taken: list[str] = ()) -> str:
+    """Short alias from the file name (any script), unique among the other documents."""
+    stem = re.sub(r"[^\w]+", "", Path(filename).stem).replace("_", "")
+    base = (stem[:6] or "DOC").upper()
+    alias, n = base, 2
+    while alias.lower() in {t.lower() for t in taken}:
+        alias, n = f"{base}{n}", n + 1
+    return alias
 
 
 def parse_pdf(path: str | Path, alias: str, role: Role = "main", name: str | None = None) -> Document:

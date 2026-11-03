@@ -110,6 +110,7 @@ class Pipeline:
         self.records: dict[str, dict] = {}
         self._started: dict[str, float] = {}
         self._speculative: LiveRun | None = None
+        self._answer_task: asyncio.Task | None = None
         # Cards the presenter can swipe through for the current question: (qid, cards, index)
         self._choices: tuple[str, list[dict], int] | None = None
 
@@ -118,7 +119,8 @@ class Pipeline:
     async def set_mode(self, mode: Mode) -> None:
         self.mode = mode
         self.listening = False
-        self._drop_speculation()
+        self._cancel_answer()
+        self._choices = None
         if mode == "present":
             main = self.ws.library.main()
             titles = {p.number: p.title for p in main.pages} if main else {}
@@ -131,8 +133,7 @@ class Pipeline:
         if self.mode == "present":
             return
         self.listening = not self.listening
-        if not self.listening:
-            self._drop_speculation()
+        self._cancel_answer()  # a new question (or stop) replaces whatever was still being written
         await self.bus.show("listening" if self.listening else "idle", partial="")
 
     async def swipe(self, delta: int) -> None:
@@ -164,11 +165,29 @@ class Pipeline:
                 await self.hear(text)
             elif self.listening and text:
                 self.listening = False
-                await self.answer(text)
+                self._cancel_answer(keep_speculation=True)
+                # In the background, so the transcript relay keeps flowing and a tap can cancel it.
+                self._answer_task = asyncio.create_task(self.answer(text))
 
     async def run_stream(self, events: AsyncIterator[dict]) -> None:
         async for event in events:
             await self.on_event(event)
+        await self.wait_idle()
+
+    async def wait_idle(self) -> None:
+        """Wait for the answer being written, if any."""
+        task = self._answer_task
+        if task and not task.done():
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    def _cancel_answer(self, keep_speculation: bool = False) -> None:
+        if not keep_speculation:
+            self._drop_speculation()
+        task = self._answer_task
+        if task and not task.done():
+            task.cancel()
+        self._answer_task = None
 
     def _maybe_speculate(self, partial: str) -> None:
         if len(partial.split()) < SPECULATE_MIN_WORDS or not looks_like_question(partial):
@@ -225,6 +244,8 @@ class Pipeline:
         def ms() -> float:
             return round((time.perf_counter() - t0) * 1000, 1)
 
+        self._choices = None  # swiping must never bring back an earlier question's cards
+
         if len(re.findall(r"\w+", question)) < 2:
             self._drop_speculation()
             record.update(path="none", reason="too short")
@@ -246,6 +267,16 @@ class Pipeline:
         record["speculative"] = run is not None
         if run is None:
             run = LiveRun(self.model, self.ws, question)
+        try:
+            await self._answer_live(qid, question, run, ranked, record, ms, t0)
+        except asyncio.CancelledError:
+            run.cancel()
+            record["path"] = "cancelled"
+            self._log(record)
+            raise
+        return qid
+
+    async def _answer_live(self, qid, question, run: "LiveRun", ranked: list[Match], record: dict, ms, t0: float) -> None:
         await self.bus.show("thinking", question=question)
 
         shown: Card | None = None
@@ -280,7 +311,11 @@ class Pipeline:
             record["error"] = run.error
         final = cardtext.parse(run.text + "\n", question)
         if final is None:
-            if "tentative" not in record:
+            if tentative is not None:  # Spark failed before the fallback deadline: still show the closest card
+                record["tentative"] = tentative.entry.id
+                record["tentative_ms"] = ms()
+                await self.bus.show("card", id=qid, path="bank", tentative=True, **self._bank_card(tentative, question))
+            elif "tentative" not in record:
                 await self.bus.show("repeat", partial=question)
                 record["path"] = "none"
         else:
@@ -296,7 +331,6 @@ class Pipeline:
         self.last_shown = None
         self._log(record)
         self._dim_later(qid)
-        return qid
 
     def _dim_later(self, qid: str) -> None:
         async def dim() -> None:

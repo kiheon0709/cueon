@@ -105,3 +105,27 @@ def test_build_bank_with_stand_in(library):
     assert {e.qtype for e in parents} == {"latency", "pricing"}
     assert all(e.card.source.startswith("DECK p.") for e in parents)
     assert any(e.parent for e in result.bank.entries)  # follow-ups are linked to their parent
+
+
+def test_aliases_any_script_and_unique():
+    from hub.sources import default_alias
+
+    assert default_alias("사업계획서.pdf") == "사업계획서"
+    assert default_alias("deck.pdf", ["DECK"]) == "DECK2"
+    lib = Library()
+    lib.add(parse_csv("a,b\n1,2\n", alias="사업계획서", name="x.csv"))
+    assert lib.resolve("사업계획서 p.1") is not None
+
+
+def test_one_failed_call_becomes_a_gap(library):
+    from hub.models import FakeModel
+
+    class Flaky(FakeModel):
+        async def judge(self, library, card):
+            if "pricing" in card.lead.lower() or "speech" in card.lead.lower():
+                raise RuntimeError("503 from the API")
+            return []
+
+    result = asyncio.run(build_bank(Flaky(delay=0), library))
+    assert any("Model call failed" in p for g in result.gaps for p in g.problems)
+    assert result.bank.entries  # the cards that worked are kept

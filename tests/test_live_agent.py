@@ -63,6 +63,7 @@ def test_speculative_start_is_reused_for_the_same_question():
         await pipeline.on_event({"type": "transcript", "transcript": question, "final": False})
         await asyncio.sleep(0.03)
         await pipeline.on_event({"type": "speechComplete", "transcript": question})
+        await pipeline.wait_idle()
 
     asyncio.run(run())
     record = next(iter(pipeline.records.values()))
@@ -78,6 +79,7 @@ def test_speculation_is_cancelled_when_the_question_changes():
         await pipeline.on_event({"type": "transcript", "transcript": "Who is your biggest competitor here", "final": False})
         await asyncio.sleep(0.01)
         await pipeline.on_event({"type": "speechComplete", "transcript": "Who is your biggest competitor here, and why do you win against Otter and the teleprompter?"})
+        await pipeline.wait_idle()
 
     asyncio.run(run())
     assert len(model.calls) == 2
@@ -111,3 +113,41 @@ def test_card_dims_after_reading_time(monkeypatch):
 
     asyncio.run(run())
     assert bus.shown[-1]["dimmed"] and bus.shown[-1]["lead"] == "1.5s"
+
+
+def test_spark_failure_still_shows_closest_card_and_swipe_is_reset():
+    class FailingModel:
+        async def answer_stream(self, library, question):
+            raise RuntimeError("503")
+            yield ""
+
+    bus = Bus()
+    pipeline = Pipeline(bus, FailingModel(), workspace())
+
+    async def run():
+        await pipeline.answer("What's the latency?")  # bank card, two candidates
+        await pipeline.answer("does it stay fast on a weak conference wifi network")
+        shown = len(bus.shown)
+        await pipeline.answer("uh")
+        await pipeline.swipe(1)  # nothing to swipe for the new question
+        return shown
+
+    shown = asyncio.run(run())
+    fallback = bus.shown[shown - 1]
+    assert fallback["state"] == "card" and fallback["tentative"] and fallback["lead"] == "1.5s"
+    assert bus.shown[-1]["state"] == "repeat"
+
+
+def test_tapping_listen_cancels_the_answer_being_written():
+    pipeline = Pipeline(Bus(), SlowModel(delay=1.0), workspace())
+    pipeline.listening = True
+
+    async def run():
+        await pipeline.on_event({"type": "speechComplete", "transcript": "Who is your biggest competitor here?"})
+        await asyncio.sleep(0.05)
+        await pipeline.toggle_listen()
+        await asyncio.sleep(0.05)
+
+    asyncio.run(run())
+    assert next(iter(pipeline.records.values()))["path"] == "cancelled"
+    assert pipeline.bus.shown[-1]["state"] == "listening"

@@ -87,6 +87,8 @@ class Tracker:
         return self.goto(best_index, sentence)
 
     def goto(self, index: int, sentence: str = "") -> Update:
+        if not self.pages:  # no notes yet (prep hasn't run)
+            return Update(page=0)
         index = max(0, min(index, len(self.pages) - 1))
         left = self.pages[self.index]
         missed = [p for p, done in zip(left.points, left.covered) if not done] if index > self.index else []

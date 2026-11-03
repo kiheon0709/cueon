@@ -99,7 +99,10 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
 
     async def one(question: str) -> tuple[Card | None, list[str]]:
         async with gate:
-            card, problems, used = await write_checked(question, library, write, judge)
+            try:
+                card, problems, used = await write_checked(question, library, write, judge)
+            except Exception as error:  # one failed call becomes a gap; the rest of prep goes on
+                card, problems, used = None, [f"Model call failed: {error}"], MAX_ATTEMPTS
         attempts[question] = used
         if card is None:
             gaps.append(Gap(question=question, problems=problems))

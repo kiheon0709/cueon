@@ -101,10 +101,12 @@ async def upload_doc(file: UploadFile = File(...), alias: str = Form(""), role: 
     path = folder / name
     with path.open("wb") as out:
         shutil.copyfileobj(file.file, out)
-    alias = (alias.strip() or default_alias(name)).replace(" ", "")
+    alias = (alias.strip() or default_alias(name, [d.alias for d in workspace.library.documents if d.name != name])).replace(" ", "")
     chosen_role = role if role in ("main", "evidence") else None
     if chosen_role is None and Path(name).suffix.lower() == ".pdf":
-        chosen_role = "evidence" if workspace.library.main() else "main"
+        # Re-uploading the main document under the same alias keeps it main.
+        current_main = workspace.library.main()
+        chosen_role = "evidence" if current_main and current_main.alias.lower() != alias.lower() else "main"
     try:
         doc = parse_file(path, alias=alias, role=chosen_role)
     except Exception as error:
@@ -339,6 +341,9 @@ async def hud(ws: WebSocket) -> None:
                 await pipeline.set_mode(message["mode"])
     except WebSocketDisconnect:
         bus.disconnect(ws)
+    except Exception:
+        log.exception("glasses connection failed")  # don't take other clients down with it
+        bus.disconnect(ws)
 
 
 @app.websocket("/audio")
@@ -382,8 +387,11 @@ async def audio(ws: WebSocket) -> None:
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        await queue.put(None)
+        while not queue.empty():  # make room for the end marker even if the relay already stopped
+            queue.get_nowait()
+        queue.put_nowait(None)
         await asyncio.wait({task}, timeout=5)
+        task.cancel()  # a session that never closes must not keep feeding the pipeline
 
 
 # --- console static files ----------------------------------------------------------------

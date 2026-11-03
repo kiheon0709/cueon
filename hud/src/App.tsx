@@ -6,6 +6,7 @@ function useNow(active: boolean): number {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!active) return;
+    setNow(Date.now());
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(tick);
   }, [active]);
@@ -29,7 +30,10 @@ export default function App() {
   // New card: collapse detail and tell the hub it was rendered (latency log).
   useEffect(() => {
     setDetail(false);
-    if (message.state === 'card' && !message.replay && !message.dimmed) send({type: 'rendered', id: message.id});
+    // The fallback card isn't the answer: only the real card counts for latency.
+    if (message.state === 'card' && !message.replay && !message.dimmed && !message.tentative) {
+      send({type: 'rendered', id: message.id});
+    }
   }, [message.id, message.state, message.lead]);
 
   // Neural Band arrives as key events. Pinch (Enter) activates the focused button; swipes are arrows:
