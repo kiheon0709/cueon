@@ -1,12 +1,14 @@
 import {useEffect, useState} from 'react';
 import {App as WearablesApp, TextColor, TextStyle, TextView} from '@wearables-ui-toolkit/mrbd';
-import {useHub} from './useHub';
+import {type CuePoint, useHub} from './useHub';
 
 // Card dims after this long so the presenter looks back at the audience.
 const DIM_AFTER_MS = 10_000;
 
 export default function App() {
   const {message, connected, send} = useHub();
+  const answerPoints = (message.state === 'card' ? message.points : []) as string[] | undefined;
+  const cuePoints = (message.state === 'present' || message.state === 'missed' ? message.points : []) as CuePoint[] | undefined;
   const [detail, setDetail] = useState(false);
   const [dimmed, setDimmed] = useState(false);
 
@@ -15,7 +17,7 @@ export default function App() {
     setDetail(false);
     setDimmed(false);
     if (message.state !== 'card') return;
-    send({type: 'rendered', id: message.id});
+    if (!message.replay) send({type: 'rendered', id: message.id});
     const timer = window.setTimeout(() => setDimmed(true), DIM_AFTER_MS);
     return () => window.clearTimeout(timer);
   }, [message]);
@@ -28,6 +30,9 @@ export default function App() {
         setDimmed(false);
       } else if (event.key === 'ArrowUp') {
         send({type: 'toggle_listen'});
+      } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+        // Presentation mode: swipe to correct the tracked page.
+        send({type: 'page', delta: event.key === 'ArrowRight' ? 1 : -1});
       }
     };
     window.addEventListener('keydown', onKey);
@@ -64,14 +69,21 @@ export default function App() {
             </TextView>
             <hr className="rule" />
             <TextView textStyle={TextStyle.HEADING1}>{message.lead}</TextView>
-            {(detail ? message.points : message.points?.slice(0, 2))?.map(point => (
+            {(detail ? answerPoints : answerPoints?.slice(0, 2))?.map(point => (
               <TextView key={point} textStyle={TextStyle.BODY2}>• {point}</TextView>
             ))}
-            {message.source && (
-              <TextView textStyle={TextStyle.META1} textColor={TextColor.ACCENT} className="source">
-                ▸ {message.source}
-              </TextView>
-            )}
+            <div className="foot">
+              {message.live && (
+                <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  Live · unchecked
+                </TextView>
+              )}
+              {message.source && (
+                <TextView textStyle={TextStyle.META1} textColor={TextColor.ACCENT} className="source">
+                  ▸ {message.source}
+                </TextView>
+              )}
+            </div>
           </div>
         )}
 
@@ -81,6 +93,36 @@ export default function App() {
             {message.partial && (
               <TextView textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>“{message.partial}”</TextView>
             )}
+          </div>
+        )}
+
+        {message.state === 'present' && (
+          <div className="stack">
+            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+              {message.page}/{message.total} · {message.title}
+            </TextView>
+            {cuePoints?.map(point => (
+              <TextView
+                key={point.text}
+                textStyle={TextStyle.BODY2}
+                textColor={point.done ? TextColor.SECONDARY : TextColor.PRIMARY}
+                className={point.done ? 'done' : undefined}
+              >
+                {point.done ? '✓' : '○'} {point.text}
+              </TextView>
+            ))}
+          </div>
+        )}
+
+        {message.state === 'missed' && (
+          <div className="stack">
+            <TextView textStyle={TextStyle.META1_EMPHASIZED} textColor={TextColor.ACCENT}>Skipped</TextView>
+            {message.missed?.map(point => (
+              <TextView key={point} textStyle={TextStyle.HEADING2}>{point}</TextView>
+            ))}
+            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+              Now {message.page}/{message.total} · {message.title}
+            </TextView>
           </div>
         )}
       </main>

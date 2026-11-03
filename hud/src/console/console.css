@@ -1,0 +1,79 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --text: #16181d;
+  --muted: #646b78;
+  --line: #e1e4ea;
+  --accent: #2f6fed;
+  --ok: #1f8a4c;
+  --warn: #b26b00;
+  --bad: #c62828;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --text: #e8eaef;
+    --muted: #949bab;
+    --line: #2a2f3a;
+    --accent: #6c9dff;
+    --ok: #4cc27f;
+    --warn: #f0a83a;
+    --bad: #ff6b6b;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 6px; }
+h3 { font-size: 13px; margin: 12px 0 4px; }
+.console { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.right { position: sticky; top: 16px; }
+@media (max-width: 1000px) { .columns { grid-template-columns: 1fr; } .right { position: static; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.grow { flex: 1; min-width: 0; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 2px 0; }
+.error { color: var(--bad); font-size: 12.5px; margin: 2px 0; }
+input, select, textarea, button { font: inherit; color: inherit; }
+input, select, textarea { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+input[type='number'] { width: 60px; }
+input[type='file'] { border: 0; padding: 0; background: none; max-width: 220px; }
+textarea { width: 100%; resize: vertical; }
+button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.ghost { background: none; color: var(--accent); padding: 2px 6px; }
+button.on { background: var(--ok); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border-radius: 0; background: none; color: var(--text); }
+.seg button.on { background: var(--accent); color: #fff; }
+table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); font-size: 13px; }
+th { color: var(--muted); font-weight: 500; }
+.badge { font-size: 12px; padding: 3px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.badge--ok { color: var(--ok); border-color: var(--ok); }
+.badge--warn { color: var(--warn); border-color: var(--warn); }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); }
+.tag--edited { color: var(--warn); }
+.tag--hit, .tag--bank { color: var(--ok); }
+.tag--live { color: var(--accent); }
+.tag--none { color: var(--bad); }
+.entry { border-top: 1px solid var(--line); padding: 8px 0; }
+.followup { margin: 6px 0 0 18px; padding-left: 10px; border-left: 2px solid var(--line); }
+.card-view .q { color: var(--muted); font-size: 13px; }
+.card-view .lead { font-weight: 600; font-size: 15px; margin: 3px 0; }
+.card-view ul { margin: 2px 0; padding-left: 18px; }
+.card-view .meta { color: var(--accent); font-size: 12.5px; }
+.card-edit { display: grid; gap: 6px; }
+.card-edit label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
+.gap { border-top: 1px solid var(--line); padding: 8px 0; }
+.gap ul { margin: 2px 0; padding-left: 18px; }
+.note { border-top: 1px solid var(--line); padding: 6px 0; font-size: 13px; }
+.glasses { margin-top: 10px; width: 300px; height: 300px; overflow: hidden; border-radius: 12px; background: #000; }
+.glasses iframe { border: 0; transform: scale(0.5); transform-origin: 0 0; }
+.recent { list-style: none; padding: 0; margin: 6px 0; font-size: 13px; }
+.recent li { padding: 2px 0; }

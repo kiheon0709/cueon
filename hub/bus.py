@@ -13,7 +13,7 @@ class HudBus:
     async def connect(self, ws: WebSocket) -> None:
         await ws.accept()
         self.clients.add(ws)
-        await ws.send_text(json.dumps(self.last))
+        await ws.send_text(json.dumps({**self.last, "replay": True}))  # not a new card: no latency ack
 
     def disconnect(self, ws: WebSocket) -> None:
         self.clients.discard(ws)

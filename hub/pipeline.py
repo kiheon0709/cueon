@@ -164,7 +164,8 @@ class Pipeline:
         return qid
 
     def mark_rendered(self, qid: str) -> None:
-        t0 = self._started.get(qid)
+        # First render only: that's when the presenter can start reading (the lead line).
+        t0 = self._started.pop(qid, None)
         record = self.records.get(qid)
         if t0 is None or record is None:
             return

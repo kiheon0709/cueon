@@ -54,8 +54,19 @@ body {
   opacity: 0.4;
 }
 
+.foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--uit-spacing-small);
+}
+
 .source {
-  align-self: flex-end;
+  margin-inline-start: auto;
+}
+
+.done {
+  opacity: 0.5;
 }
 
 .dot {

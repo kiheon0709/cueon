@@ -1,6 +1,11 @@
 import {useEffect, useRef, useState} from 'react';
 
-export type HudState = 'idle' | 'listening' | 'thinking' | 'card' | 'repeat';
+export type HudState = 'idle' | 'listening' | 'thinking' | 'card' | 'repeat' | 'present' | 'missed';
+
+export interface CuePoint {
+  text: string;
+  done: boolean;
+}
 
 export interface HudMessage {
   type: 'hud';
@@ -9,16 +14,29 @@ export interface HudMessage {
   partial?: string;
   question?: string;
   lead?: string;
-  points?: string[];
   source?: string;
-  confidence?: number;
+  /** 'bank' = prepared and checked card; 'live' = written on the spot by Spark. */
+  path?: 'bank' | 'live';
+  live?: boolean;
+  // Presentation mode
+  page?: number;
+  total?: number;
+  title?: string;
+  points?: string[] | CuePoint[];
+  bridge?: string;
+  missed?: string[];
+  /** Sent on (re)connect: the state was already on screen, so don't ack it as a new render. */
+  replay?: boolean;
 }
 
 const IDLE: HudMessage = {type: 'hud', state: 'idle'};
 
 function hubUrl(): string {
   const fromQuery = new URLSearchParams(location.search).get('hub');
-  return fromQuery ?? 'ws://127.0.0.1:8000/hud';
+  if (fromQuery) return fromQuery;
+  // Served by the hub (or the Vite dev proxy): same host. Opened as a file or elsewhere: local hub.
+  if (location.protocol.startsWith('http')) return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/hud`;
+  return 'ws://127.0.0.1:8000/hud';
 }
 
 /** Connects to the hub, reconnecting after drops. Returns the latest HUD message and a sender. */
