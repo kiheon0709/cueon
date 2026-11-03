@@ -88,3 +88,28 @@ def test_glimmer_local_mode_uses_the_same_prompts_without_cloud_fields(library):
     assert all(r["model"] == "muse-glimmer-30b" for r in requests)
     assert not any("prompt_cache_key" in r or "reasoning_effort" in r for r in requests)
     assert len({r["messages"][0]["content"] for r in requests}) == 1  # same prefix → runtime KV cache reuse
+
+
+def test_falls_back_to_json_mode_when_schema_is_rejected(library):
+    server = make_server(ANSWERS, LIVE, reject_schema=True)
+    client = httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://spark")
+    model = SparkModel("LLM|1|test", base_url="http://spark/v1", http_client=client)
+    result = asyncio.run(build_bank(model, library))
+    assert [e.card.lead for e in result.bank.entries] == ["Card in 1.4s", "Card in 1.4s"]
+    formats = [r["response_format"]["type"] for r in server.state.requests]
+    assert formats[0] == "json_schema" and set(formats[1:]) == {"json_object"}  # tried once, then remembered
+
+
+def test_falls_back_to_system_role(library):
+    server = make_server(ANSWERS, LIVE, reject_developer=True)
+    client = httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://spark")
+    model = SparkModel("LLM|1|test", base_url="http://spark/v1", http_client=client)
+    result = asyncio.run(build_bank(model, library))
+    assert len(result.bank.entries) == 2
+
+    async def live():
+        return "".join([p async for p in model.answer_stream(library, "How fast?")])
+
+    assert asyncio.run(live()) == LIVE
+    roles = [r["messages"][0]["role"] for r in server.state.requests]
+    assert roles[0] == "developer" and set(roles[1:]) == {"system"}

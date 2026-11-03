@@ -218,6 +218,18 @@ NUMBERS_SCHEMA = {
 }
 
 
+def parse_json(text: str | None) -> dict:
+    """Parse a JSON object reply, tolerating a markdown fence or text around it."""
+    text = (text or "").strip()
+    try:
+        return json.loads(text or "{}")
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end <= start:
+            raise
+        return json.loads(text[start : end + 1])
+
+
 # ---------------------------------------------------------------------------------------------
 # Muse Spark
 
@@ -231,6 +243,8 @@ class SparkModel:
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=60, max_retries=2, http_client=http_client)
         self.model = model
         self.cache_stats: list[dict] = []  # per call: prompt and cached tokens, for the console
+        self._plain_json = False  # set if the server turns out not to support json_schema
+        self._prefix_role = "developer"  # cookbook default; falls back to "system" if rejected
 
     backend = "spark"
 
@@ -241,7 +255,23 @@ class SparkModel:
     def _messages(self, library: Library, task: str) -> tuple[list[dict], str]:
         prefix = INSTRUCTIONS + library.as_prompt()
         key = "cueon-" + hashlib.sha256(prefix.encode()).hexdigest()[:16]
-        return [{"role": "developer", "content": prefix}, {"role": "user", "content": task}], key
+        return [{"role": self._prefix_role, "content": prefix}, {"role": "user", "content": task}], key
+
+    async def _create(self, **kwargs):
+        """chat.completions.create, switching the prefix to the system role if 'developer' is rejected."""
+        from openai import BadRequestError
+
+        try:
+            return await self.client.chat.completions.create(**kwargs)
+        except BadRequestError as error:
+            messages = kwargs.get("messages") or []
+            if self._prefix_role != "developer" or "role" not in str(error).lower() or not messages:
+                raise
+            log.warning("developer role rejected; using system role from now on")
+            self._prefix_role = "system"
+            if messages[0].get("role") == "developer":
+                kwargs["messages"] = [{**messages[0], "role": "system"}, *messages[1:]]
+            return await self.client.chat.completions.create(**kwargs)
 
     def _record(self, task: str, usage, started: float) -> None:
         if usage is None:
@@ -254,16 +284,34 @@ class SparkModel:
         self.cache_stats = self.cache_stats[-200:]
 
     async def _json(self, library: Library, task_name: str, task: str, schema: dict, effort: str) -> dict:
+        """Structured output. If the server rejects json_schema, fall back to JSON mode with the
+        schema in the prompt, so one unsupported parameter doesn't stop prep."""
+        from openai import BadRequestError
+
         messages, key = self._messages(library, task)
         started = time.perf_counter()
-        response = await self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            **self._options(key, effort),
-            response_format={"type": "json_schema", "json_schema": {"name": task_name, "schema": schema}},
+        if not self._plain_json:
+            try:
+                response = await self._create(
+                    model=self.model,
+                    messages=messages,
+                    **self._options(key, effort),
+                    response_format={"type": "json_schema", "json_schema": {"name": task_name, "schema": schema}},
+                )
+                self._record(task_name, response.usage, started)
+                return parse_json(response.choices[0].message.content)
+            except BadRequestError as error:
+                log.warning("json_schema rejected (%s); using JSON mode from now on", error)
+                self._plain_json = True
+        messages[-1] = {
+            "role": "user",
+            "content": f"{task}\n\nReply with only a JSON object matching this schema:\n{json.dumps(schema)}",
+        }
+        response = await self._create(
+            model=self.model, messages=messages, **self._options(key, effort), response_format={"type": "json_object"}
         )
         self._record(task_name, response.usage, started)
-        return json.loads(response.choices[0].message.content or "{}")
+        return parse_json(response.choices[0].message.content)
 
     async def expected_questions(self, library: Library, limit: int) -> list[QuestionPlan]:
         data = await self._json(library, "questions", QUESTIONS_TASK.format(limit=limit), QUESTIONS_SCHEMA, "medium")
@@ -286,7 +334,7 @@ class SparkModel:
     async def answer_stream(self, library: Library, question: str) -> AsyncIterator[str]:
         messages, key = self._messages(library, LIVE_TASK.format(question=question))
         started = time.perf_counter()
-        stream = await self.client.chat.completions.create(
+        stream = await self._create(
             model=self.model,
             messages=messages,
             **self._options(key, "minimal"),
@@ -314,7 +362,7 @@ class SparkModel:
         """Read the numbers in a page's charts and tables (vision input, no material prefix)."""
         url = "data:image/png;base64," + base64.b64encode(image_png).decode()
         started = time.perf_counter()
-        response = await self.client.chat.completions.create(
+        response = await self._create(
             model=self.model,
             messages=[
                 {
@@ -333,7 +381,7 @@ class SparkModel:
         """Send the prefix once so the first live question hits a warm cache."""
         messages, key = self._messages(library, "Reply with OK.")
         started = time.perf_counter()
-        response = await self.client.chat.completions.create(
+        response = await self._create(
             model=self.model, messages=messages, **self._options(key, "minimal")
         )
         self._record("warm", response.usage, started)
