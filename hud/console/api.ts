@@ -67,11 +67,15 @@ export interface QuestionRecord {
   card?: number;
   rendered?: number;
   error?: string;
+  speculative?: boolean;
+  tentative?: string;
 }
 
 export interface Stats {
   questions: number;
   hit_rate: number | null;
+  speculative: number;
+  tentative: number;
   paths: {bank: PathStats; live: PathStats};
   recent: QuestionRecord[];
   cache: {task: string; prompt: number; cached: number; ms: number}[];

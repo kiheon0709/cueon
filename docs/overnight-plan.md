@@ -35,7 +35,7 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] HUD: tentative/live/candidate states, layout to Meta UI Toolkit rules (body-scale type, tokens, one focus target)
 - [x] HUD: `?device=xreal` placement option
 - [x] HUD: run Meta's webapp checker (meta-wearables-webapp check-webapp.mjs) — passes
-- [ ] Console: drag-and-drop upload, glasses-size preview per card, live transcript, prep stats
+- [x] Console: drag-and-drop upload, lens-style card previews, prep stats, early-start/fallback markers
 
 ## 7. Evaluation
 - [ ] eval/bench.py: N questions through the hub, p50/p95 per stage, markdown table

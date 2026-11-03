@@ -104,10 +104,10 @@ function Material({docs, run}: {docs: Doc[]; run: Run}) {
   const [role, setRole] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const upload = () =>
+  const [dragging, setDragging] = useState(false);
+
+  const send = (file: File) =>
     run(async () => {
-      const file = fileRef.current?.files?.[0];
-      if (!file) throw new Error('Choose a PDF or CSV first.');
       const form = new FormData();
       form.append('file', file);
       form.append('alias', alias);
@@ -117,10 +117,30 @@ function Material({docs, run}: {docs: Doc[]; run: Run}) {
       if (fileRef.current) fileRef.current.value = '';
     });
 
+  const upload = () => {
+    const file = fileRef.current?.files?.[0];
+    if (file) void send(file);
+  };
+
   return (
     <div className="panel">
       <h2>1 · Material</h2>
       <p className="hint">Slides, plans, papers, data. Cards cite pages as “ALIAS p.N”.</p>
+      <div
+        className={`drop${dragging ? ' drop--on' : ''}`}
+        onDragOver={e => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => {
+          e.preventDefault();
+          setDragging(false);
+          Array.from(e.dataTransfer.files).forEach(file => void send(file));
+        }}
+      >
+        Drop PDF or CSV files here (alias and role below apply to the next file)
+      </div>
       <div className="row">
         <input type="file" accept=".pdf,.csv" ref={fileRef} />
         <input placeholder="Alias (e.g. BP)" value={alias} onChange={e => setAlias(e.target.value)} size={10} />
@@ -236,14 +256,16 @@ function EntryEditor({entry, run}: {entry: Entry; run: Run}) {
           {entry.edited && <span className="tag tag--edited">edited</span>}
           {entry.hits > 0 && <span className="tag tag--hit">hit ×{entry.hits}</span>}
         </div>
-        <div className="lead">{entry.card.lead}</div>
-        <ul>
-          {entry.card.points.map(p => (
-            <li key={p}>{p}</li>
+        <div className="lens">
+          <div className="lens-lead">{entry.card.lead}</div>
+          {entry.card.points.slice(0, 2).map(p => (
+            <div key={p}>{p}</div>
           ))}
-        </ul>
+          {entry.card.points.length > 2 && <div className="lens-more">+{entry.card.points.length - 2} on swipe down</div>}
+          <div className="lens-source">{entry.card.source}</div>
+        </div>
+        <div className="hint">Matches: {[entry.question, ...entry.variants].join(' · ')}</div>
         <div className="meta">
-          ▸ {entry.card.source} · matches {entry.variants.length} phrasings
           <button className="ghost" onClick={() => setEditing(true)}>Edit</button>
           <button className="ghost" onClick={() => run(() => api(`/api/bank/${entry.id}`, {method: 'DELETE'}))}>
             Delete
@@ -493,6 +515,8 @@ function Latency({stats}: {stats: Stats | null}) {
               {r.qtype ? `→ ${r.qtype} (${r.score}) ` : ''}
               {ms(r.first)}
               {r.rendered ? ` / ${ms(r.rendered)}` : ''}
+              {r.speculative ? ' · started early' : ''}
+              {r.tentative ? ' · fallback card shown' : ''}
               {r.error ? ` · ${r.error}` : ''}
             </span>
           </li>
