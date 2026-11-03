@@ -13,6 +13,7 @@ from hub.cards import Card
 from hub.similarity import cosine, features
 
 MATCH_THRESHOLD = 0.42  # below this the live path writes a card on the spot
+TENTATIVE_THRESHOLD = 0.2  # close enough to show while Spark is still writing
 FOLLOW_UP_BONUS = 0.08
 
 
@@ -50,19 +51,26 @@ class Bank(BaseModel):
     def follow_ups(self, entry_id: str) -> list[Entry]:
         return [e for e in self.entries if e.parent == entry_id]
 
-    def match(self, question: str, last_shown: str | None = None) -> Match | None:
-        """Best entry for the question, or None if nothing is close enough to show as is."""
+    def rank(self, question: str, last_shown: str | None = None, limit: int = 3) -> list[Match]:
+        """Entries ordered by how well their best phrasing matches the question."""
         heard = features(question)
-        best: Match | None = None
+        ranked: list[Match] = []
         for entry in self.entries:
             bonus = FOLLOW_UP_BONUS if last_shown and entry.parent == last_shown else 0.0
+            best: Match | None = None
             for phrase in [entry.question, *entry.variants]:
                 score = cosine(heard, features(phrase)) + bonus
                 if best is None or score > best.score:
                     best = Match(entry=entry, score=score, phrase=phrase)
-        if best is None or best.score < MATCH_THRESHOLD:
-            return None
-        return best
+            if best:
+                ranked.append(best)
+        ranked.sort(key=lambda m: m.score, reverse=True)
+        return ranked[:limit]
+
+    def match(self, question: str, last_shown: str | None = None) -> Match | None:
+        """Best entry for the question, or None if nothing is close enough to show as is."""
+        ranked = self.rank(question, last_shown, limit=1)
+        return ranked[0] if ranked and ranked[0].score >= MATCH_THRESHOLD else None
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import shutil
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -34,7 +35,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s
 log = logging.getLogger("cueon")
 
 DATA = config.DATA_DIR
-app = FastAPI(title="Cueon hub")
+WARM_EVERY_S = 240  # keep Spark's prompt cache warm between questions
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    async def keep_warm() -> None:
+        while True:
+            await asyncio.sleep(WARM_EVERY_S)
+            if workspace.library.documents and not config.fake_mode():
+                await warm()
+
+    task = asyncio.create_task(keep_warm())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="Cueon hub", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 bus = HudBus()
@@ -289,7 +306,7 @@ async def hud(ws: WebSocket) -> None:
             elif kind == "toggle_listen":
                 await pipeline.toggle_listen()
             elif kind == "page":
-                await pipeline.goto_page(int(message.get("delta", 1)))
+                await pipeline.swipe(int(message.get("delta", 1)))
     except WebSocketDisconnect:
         bus.disconnect(ws)
 

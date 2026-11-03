@@ -18,6 +18,11 @@ export interface HudMessage {
   /** 'bank' = prepared and checked card; 'live' = written on the spot by Spark. */
   path?: 'bank' | 'live';
   live?: boolean;
+  /** Nearest prepared card shown while Spark is still writing. */
+  tentative?: boolean;
+  /** Which of several candidate cards this is (swipe left/right). */
+  choice?: number;
+  choices?: number;
   // Presentation mode
   page?: number;
   total?: number;

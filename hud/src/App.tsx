@@ -78,6 +78,16 @@ export default function App() {
                   Live · unchecked
                 </TextView>
               )}
+              {message.tentative && (
+                <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  Closest prepared · updating…
+                </TextView>
+              )}
+              {!!message.choices && message.choices > 1 && (
+                <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY}>
+                  {message.choice ?? 1}/{message.choices} ◂▸
+                </TextView>
+              )}
               {message.source && (
                 <TextView textStyle={TextStyle.META1} textColor={TextColor.ACCENT} className="source">
                   ▸ {message.source}

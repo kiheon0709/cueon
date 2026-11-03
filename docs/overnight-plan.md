@@ -11,11 +11,11 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] Fake ASR WebSocket server in tests: handshake, binary audio, endStream, events → pipeline.
 
 ## 2. Live agent (기획서 6장)
-- [ ] Fallback: if no live lead within 1.2 s, show the nearest bank card (marked tentative), replace when Spark answers
-- [ ] Speculative start: partial transcript that looks like a complete question starts the live request early; cancel if final differs
-- [ ] Second candidate: swipe left/right shows the runner-up card
-- [ ] Repeat card for unusable transcripts (too short / not a question)
-- [ ] Cache warm-up every few minutes while idle
+- [x] Fallback: if no live lead within 1.2 s, show the nearest bank card (marked tentative), replace when Spark answers
+- [x] Speculative start: partial transcript that looks like a complete question starts the live request early; cancel if final differs
+- [x] Second candidate: swipe left/right shows the runner-up card
+- [x] Repeat card for unusable transcripts (too short / not a question)
+- [x] Cache warm-up every few minutes while idle
 
 ## 3. Glimmer local mode (P1, Open Weights bonus)
 - [ ] OpenAI-compatible local backend (ollama / llama.cpp server), MODEL_BACKEND=glimmer
