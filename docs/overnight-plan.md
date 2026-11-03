@@ -44,5 +44,5 @@ Status: [ ] todo · [~] doing · [x] done
 
 ## 8. Demo + submission
 - [x] samples/: Cueon pitch deck PDF + evidence CSV for the demo
-- [ ] docs/ARCHITECTURE.md, demo video script, submission text, X post draft
-- [ ] End-to-end Playwright check + screenshots
+- [x] docs/ARCHITECTURE.md, demo video script, submission text, X post draft
+- [x] End-to-end Playwright check + screenshots
