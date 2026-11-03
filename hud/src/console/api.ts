@@ -9,6 +9,7 @@ export interface Card {
 export interface Entry {
   id: string;
   qtype: string;
+  audience: string;
   question: string;
   variants: string[];
   card: Card;
@@ -38,7 +39,13 @@ export interface Status {
   mode: 'qa' | 'present';
   listening: boolean;
   hud_clients: number;
-  prep: {running: boolean; message: string; error: string | null};
+  prep: {
+    running: boolean;
+    message: string;
+    error: string | null;
+    vision_pages?: number;
+    stats?: {questions: number; cards: number; first_try: number; retried: number; gaps: number; drafts: number};
+  };
 }
 
 export interface PathStats {
@@ -74,6 +81,8 @@ export interface PageNotes {
   points: string[];
   bridge: string;
   short: string;
+  support: string;
+  support_source: string;
 }
 
 /** Hub base URL: same origin by default, or ?hub=http://host:8000 */

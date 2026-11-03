@@ -16,6 +16,7 @@ class Workspace(BaseModel):
     gaps: list[Gap] = []
     notes: list[PageNotes] = []
     attempts: dict[str, int] = {}
+    stt_terms: list[str] = []  # picked by the model during prep
 
     def save(self, data_dir: Path) -> None:
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -28,7 +29,7 @@ class Workspace(BaseModel):
 
     def keywords(self) -> list[str]:
         """Terms to bias speech recognition toward: document aliases and page titles."""
-        terms: list[str] = []
+        terms: list[str] = list(self.stt_terms)
         for doc in self.library.documents:
             terms.append(doc.alias)
             terms += [p.title[:40] for p in doc.pages if p.title.strip()]

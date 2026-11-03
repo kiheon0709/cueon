@@ -20,6 +20,7 @@ FOLLOW_UP_BONUS = 0.08
 class Entry(BaseModel):
     id: str
     qtype: str
+    audience: str = ""
     question: str
     variants: list[str] = []
     card: Card
@@ -37,8 +38,10 @@ class Match(BaseModel):
 class Bank(BaseModel):
     entries: list[Entry] = []
 
-    def add(self, qtype: str, card: Card, variants: list[str], parent: str | None = None) -> Entry:
-        entry = Entry(id=uuid.uuid4().hex[:8], qtype=qtype, question=card.question, variants=variants, card=card, parent=parent)
+    def add(self, qtype: str, card: Card, variants: list[str], parent: str | None = None, audience: str = "") -> Entry:
+        entry = Entry(
+            id=uuid.uuid4().hex[:8], qtype=qtype, audience=audience, question=card.question, variants=variants, card=card, parent=parent
+        )
         self.entries.append(entry)
         return entry
 

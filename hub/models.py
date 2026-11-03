@@ -6,6 +6,7 @@ user message changes. There is no retrieval step: Spark sees all of the material
 """
 
 import asyncio
+import base64
 import hashlib
 import json
 import logging
@@ -33,6 +34,7 @@ class QuestionPlan(BaseModel):
     """One question type: the canonical question, how people might phrase it, and what comes next."""
 
     qtype: str
+    audience: str = ""  # who tends to ask it: investor, technical judge, general audience
     question: str
     variants: list[str] = []
     follow_ups: list[FollowUp] = []
@@ -43,6 +45,8 @@ class PageNotes(BaseModel):
     points: list[str]  # what the presenter must say on this page
     bridge: str = ""  # line into the next page
     short: str = ""  # one-sentence version for when time runs out
+    support: str = ""  # a backing fact from the evidence documents (보충 멘트)
+    support_source: str = ""  # where that fact is, "<alias> p.<n>"
 
 
 class Model(Protocol):
@@ -55,6 +59,10 @@ class Model(Protocol):
     def answer_stream(self, library: Library, question: str) -> AsyncIterator[str]: ...
 
     async def page_notes(self, library: Library) -> list[PageNotes]: ...
+
+    async def keywords(self, library: Library) -> list[str]: ...
+
+    async def chart_numbers(self, image_png: bytes) -> list[str]: ...
 
 
 # ---------------------------------------------------------------------------------------------
@@ -70,9 +78,12 @@ Cards are read at a glance on a small lens: short phrases, no full sentences, no
 """
 
 QUESTIONS_TASK = """List the questions the audience or a judging panel is most likely to ask after this talk.
-Give at most {limit} question types, most likely first. Include the hard ones: weaknesses, competitors,
-numbers, risks, what's next. For each type give:
+Think from three seats in the room: an investor (market, business model, competition, traction),
+a technical judge (how it works, latency, accuracy, limits), and the general audience (who it's for,
+privacy, what it feels like to use). Give at most {limit} question types, most likely first, mixing
+the three. Include the hard ones: weaknesses, competitors, numbers, risks, what's next. For each type give:
 - qtype: a short slug (e.g. "latency", "competitors")
+- audience: "investor", "technical", or "general"
 - question: the canonical question
 - variants: 4 different ways a person might actually say it out loud (short, spoken style)
 - follow_ups: up to 2 likely follow-up questions, each with 3 spoken variants"""
@@ -104,7 +115,16 @@ NOTES_TASK = """For every page of the main document ({alias}), write the notes t
 - page: the page number
 - points: 2-4 key points the presenter must say on this page, at most 8 words each
 - bridge: one short line that leads into the next page
-- short: a one-sentence version of the page for when time runs out"""
+- short: a one-sentence version of the page for when time runs out
+- support: one extra fact from the evidence documents that backs up this page, at most 12 words,
+  or "" if there is none. Never take it from the page itself.
+- support_source: where that fact is, as "<alias> p.<n>", or "" """
+
+KEYWORDS_TASK = """List up to 40 terms a speech recognizer might mishear in questions about this material:
+product and company names, people, acronyms, jargon, unusual words. Most important first."""
+
+CHART_TASK = """This is one page of a presentation. List every number shown in its charts, graphs, and tables
+exactly as printed (for example "61%", "1.4", "$2.3M"). Ignore page numbers. Return an empty list if there are none."""
 
 QUESTIONS_SCHEMA = {
     "type": "object",
@@ -115,6 +135,7 @@ QUESTIONS_SCHEMA = {
                 "type": "object",
                 "properties": {
                     "qtype": {"type": "string"},
+                    "audience": {"type": "string", "enum": ["investor", "technical", "general"]},
                     "question": {"type": "string"},
                     "variants": {"type": "array", "items": {"type": "string"}},
                     "follow_ups": {
@@ -130,7 +151,7 @@ QUESTIONS_SCHEMA = {
                         },
                     },
                 },
-                "required": ["qtype", "question", "variants", "follow_ups"],
+                "required": ["qtype", "audience", "question", "variants", "follow_ups"],
                 "additionalProperties": False,
             },
         }
@@ -170,13 +191,29 @@ NOTES_SCHEMA = {
                     "points": {"type": "array", "items": {"type": "string"}},
                     "bridge": {"type": "string"},
                     "short": {"type": "string"},
+                    "support": {"type": "string"},
+                    "support_source": {"type": "string"},
                 },
-                "required": ["page", "points", "bridge", "short"],
+                "required": ["page", "points", "bridge", "short", "support", "support_source"],
                 "additionalProperties": False,
             },
         }
     },
     "required": ["pages"],
+    "additionalProperties": False,
+}
+
+TERMS_SCHEMA = {
+    "type": "object",
+    "properties": {"terms": {"type": "array", "items": {"type": "string"}}},
+    "required": ["terms"],
+    "additionalProperties": False,
+}
+
+NUMBERS_SCHEMA = {
+    "type": "object",
+    "properties": {"numbers": {"type": "array", "items": {"type": "string"}}},
+    "required": ["numbers"],
     "additionalProperties": False,
 }
 
@@ -268,6 +305,29 @@ class SparkModel:
             return []
         data = await self._json(library, "notes", NOTES_TASK.format(alias=main.alias), NOTES_SCHEMA, "low")
         return [PageNotes.model_validate(p) for p in data.get("pages", [])]
+
+    async def keywords(self, library: Library) -> list[str]:
+        data = await self._json(library, "keywords", KEYWORDS_TASK, TERMS_SCHEMA, "low")
+        return [t.strip() for t in data.get("terms", []) if t.strip()][:50]
+
+    async def chart_numbers(self, image_png: bytes) -> list[str]:
+        """Read the numbers in a page's charts and tables (vision input, no material prefix)."""
+        url = "data:image/png;base64," + base64.b64encode(image_png).decode()
+        started = time.perf_counter()
+        response = await self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [{"type": "text", "text": CHART_TASK}, {"type": "image_url", "image_url": {"url": url}}],
+                }
+            ],
+            response_format={"type": "json_schema", "json_schema": {"name": "chart_numbers", "schema": NUMBERS_SCHEMA}},
+            **self._options("cueon-vision", "low"),
+        )
+        self._record("vision", response.usage, started)
+        data = json.loads(response.choices[0].message.content or "{}")
+        return [str(n) for n in data.get("numbers", [])]
 
     async def warm(self, library: Library) -> None:
         """Send the prefix once so the first live question hits a warm cache."""
@@ -382,6 +442,12 @@ class FakeModel:
             lines = _content_lines(page) or [page.title]
             notes.append(PageNotes(page=page.number, points=[_clip(line, 8) for line in lines[:3]], short=_clip(lines[0], 15)))
         return notes
+
+    async def keywords(self, library: Library) -> list[str]:
+        return [p.title for d in library.documents for p in d.pages][:50]
+
+    async def chart_numbers(self, image_png: bytes) -> list[str]:
+        return []
 
     async def warm(self, library: Library) -> None:
         return None

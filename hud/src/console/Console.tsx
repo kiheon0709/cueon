@@ -182,6 +182,14 @@ function Prep({status, entries, gaps, run}: {status: Status | null; entries: Ent
       <p>
         <b>{entries.length}</b> cards · <b>{entries.filter(e => e.parent).length}</b> follow-ups · <b>{gaps.length}</b> gaps
       </p>
+      {prep?.stats && prep.stats.questions > 0 && (
+        <p className="hint">
+          Checks: {prep.stats.first_try}/{prep.stats.questions} cards passed on the first draft,{' '}
+          {prep.stats.retried} fixed after feedback, {prep.stats.gaps} rejected after 3 tries ·{' '}
+          {prep.stats.drafts} drafts written
+          {prep.vision_pages ? ` · numbers read from ${prep.vision_pages} chart pages` : ''}
+        </p>
+      )}
     </div>
   );
 }
@@ -223,7 +231,8 @@ function EntryEditor({entry, run}: {entry: Entry; run: Run}) {
     return (
       <div className="card-view" onDoubleClick={() => setEditing(true)}>
         <div className="q">
-          <span className="tag">{entry.qtype}</span> {entry.question}
+          <span className="tag">{entry.qtype}</span>
+          {entry.audience && <span className="tag">{entry.audience}</span>} {entry.question}
           {entry.edited && <span className="tag tag--edited">edited</span>}
           {entry.hits > 0 && <span className="tag tag--hit">hit ×{entry.hits}</span>}
         </div>
@@ -331,6 +340,11 @@ function Notes({notes}: {notes: PageNotes[]}) {
         <div key={n.page} className="note">
           <b>p.{n.page}</b> {n.points.join(' · ')}
           {n.short && <div className="hint">Short: {n.short}</div>}
+          {n.support && (
+            <div className="hint">
+              Backup: {n.support} ▸ {n.support_source}
+            </div>
+          )}
         </div>
       ))}
     </div>

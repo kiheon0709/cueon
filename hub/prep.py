@@ -111,12 +111,71 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
         done += 1
         if card is None:
             continue
-        entry = bank.add(plan.qtype, card, plan.variants)
+        entry = bank.add(plan.qtype, card, plan.variants, audience=plan.audience)
         children = await asyncio.gather(*(one(f.question) for f in plan.follow_ups))
         for follow, (child, _) in zip(plan.follow_ups, children):
             if child is not None:
-                bank.add(plan.qtype, child, follow.variants, parent=entry.id)
+                bank.add(plan.qtype, child, follow.variants, parent=entry.id, audience=plan.audience)
         await report(f"Cards {done}/{len(plans)}")
 
     await report(f"Done: {len(bank.entries)} cards, {len(gaps)} gaps")
     return BankResult(bank=bank, gaps=gaps, attempts=attempts)
+
+
+# --- the whole prep run ---------------------------------------------------------------------
+
+VISION_PARALLEL = 4
+
+
+async def read_charts(model: Model, library: Library) -> int:
+    """Add numbers printed in charts and tables to each page, so cards may cite them. Returns pages read."""
+    from hub.sources import numbers_in, page_png, pages_with_visuals
+
+    jobs = []
+    for doc in library.documents:
+        if doc.path and doc.path.lower().endswith(".pdf"):
+            jobs += [(doc, n) for n in pages_with_visuals(doc.path)]
+    gate = asyncio.Semaphore(VISION_PARALLEL)
+
+    async def one(doc, number: int) -> None:
+        async with gate:
+            try:
+                found = await model.chart_numbers(page_png(doc.path, number))
+            except Exception:
+                return  # a page we can't read keeps its text numbers
+        page = doc.page(number)
+        if page:
+            page.numbers |= numbers_in(" ".join(found))
+
+    await asyncio.gather(*(one(doc, n) for doc, n in jobs))
+    return len(jobs)
+
+
+def check_notes(notes: list, library: Library) -> list:
+    """Same number check as cards: a supporting line must cite a real page that has its numbers."""
+    from hub.sources import numbers_in
+
+    main = library.main()
+    for note in notes:
+        if note.support:
+            found = library.resolve(note.support_source)
+            if found is None or not numbers_in(note.support) <= found[1].numbers:
+                note.support, note.support_source = "", ""
+        page = main.page(note.page) if main else None
+        if page:
+            note.points = [p for p in note.points if numbers_in(p) <= page.numbers]
+    return notes
+
+
+def prep_stats(attempts: dict[str, int], gaps: list[Gap]) -> dict:
+    total = len(attempts)
+    gap_questions = {g.question for g in gaps}
+    passed = {q: n for q, n in attempts.items() if q not in gap_questions}
+    return {
+        "questions": total,
+        "cards": len(passed),
+        "first_try": sum(1 for n in passed.values() if n == 1),
+        "retried": sum(1 for n in passed.values() if n > 1),
+        "gaps": len(gap_questions),
+        "drafts": sum(attempts.values()),
+    }

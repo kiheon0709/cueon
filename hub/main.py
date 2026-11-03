@@ -27,7 +27,7 @@ from hub.cards import Card  # noqa: E402
 from hub.fakes import fake_transcribe  # noqa: E402
 from hub.models import make_model  # noqa: E402
 from hub.pipeline import Mode, Pipeline  # noqa: E402
-from hub.prep import build_bank  # noqa: E402
+from hub.prep import build_bank, check_notes, prep_stats, read_charts  # noqa: E402
 from hub.sources import default_alias, parse_file  # noqa: E402
 from hub.workspace import Workspace  # noqa: E402
 
@@ -58,7 +58,7 @@ bus = HudBus()
 model = make_model()
 workspace = Workspace.load(DATA)
 pipeline = Pipeline(bus, model, workspace, log_path=DATA / "questions.jsonl")
-prep_status: dict = {"running": False, "message": "", "error": None}
+prep_status: dict = {"running": False, "message": "", "error": None, "stats": prep_stats(workspace.attempts, workspace.gaps)}
 
 
 def save() -> None:
@@ -155,6 +155,9 @@ async def run_prep(limit: int) -> None:
         prep_status["message"] = message
 
     try:
+        prep_status["message"] = "Reading charts and tables"
+        pages = await read_charts(model, workspace.library)
+        prep_status["vision_pages"] = pages
         result = await build_bank(model, workspace.library, limit=limit, progress=progress)
         # Keep the presenter's own edits; replace the rest.
         kept = [e for e in workspace.bank.entries if e.edited]
@@ -163,7 +166,10 @@ async def run_prep(limit: int) -> None:
         workspace.gaps = result.gaps
         workspace.attempts = result.attempts
         prep_status["message"] = "Writing presentation notes"
-        workspace.notes = await model.page_notes(workspace.library)
+        workspace.notes = check_notes(await model.page_notes(workspace.library), workspace.library)
+        prep_status["message"] = "Picking speech-recognition terms"
+        workspace.stt_terms = await model.keywords(workspace.library)
+        prep_status["stats"] = prep_stats(workspace.attempts, workspace.gaps)
         save()
         prep_status["message"] = f"Ready: {len(workspace.bank.entries)} cards, {len(workspace.gaps)} gaps"
     except Exception as error:

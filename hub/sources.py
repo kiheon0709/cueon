@@ -39,6 +39,7 @@ class Document(BaseModel):
     name: str
     role: Role = "main"
     pages: list[Page]
+    path: str | None = None  # the uploaded file, for rendering pages
 
     def page(self, number: int) -> Page | None:
         return next((p for p in self.pages if p.number == number), None)
@@ -88,7 +89,7 @@ def parse_pdf(path: str | Path, alias: str, role: Role = "main", name: str | Non
             text = page.get_text().strip()
             title = next((line.strip() for line in text.splitlines() if line.strip()), f"Page {i}")
             pages.append(Page(number=i, title=title, text=text, numbers=numbers_in(text)))
-    return Document(alias=alias, name=name or Path(path).name, role=role, pages=pages)
+    return Document(alias=alias, name=name or Path(path).name, role=role, pages=pages, path=str(path))
 
 
 def parse_csv(data: str, alias: str, name: str, role: Role = "evidence") -> Document:
@@ -113,6 +114,21 @@ def parse_file(path: str | Path, alias: str | None = None, role: Role | None = N
     if path.suffix.lower() == ".csv":
         return parse_csv(path.read_text(encoding="utf-8-sig"), alias, path.name, role or "evidence")
     return parse_pdf(path, alias, role or "main", path.name)
+
+
+def pages_with_visuals(path: str | Path) -> list[int]:
+    """Pages that have images or vector drawings: where charts and tables hide numbers."""
+    found = []
+    with pymupdf.open(path) as doc:
+        for i, page in enumerate(doc, start=1):
+            if page.get_images() or len(page.get_drawings()) >= 3:
+                found.append(i)
+    return found
+
+
+def page_png(path: str | Path, number: int, dpi: int = 110) -> bytes:
+    with pymupdf.open(path) as doc:
+        return doc[number - 1].get_pixmap(dpi=dpi).tobytes("png")
 
 
 def render_pages(path: str | Path, out_dir: str | Path, dpi: int = 100) -> list[Path]:

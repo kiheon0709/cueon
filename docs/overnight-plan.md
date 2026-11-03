@@ -22,11 +22,11 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] Console badge + README section
 
 ## 4. Prep Agent depth
-- [ ] Audience perspectives (investor / technical judge / general) in question generation
-- [ ] Chart and table numbers from page images (Spark vision) added to page numbers
-- [ ] STT keyword list from the model (proper nouns, acronyms)
-- [ ] Presentation notes: supporting line from evidence docs, number-checked like cards
-- [ ] Rejection rate and retries shown in the console
+- [x] Audience perspectives (investor / technical judge / general) in question generation
+- [x] Chart and table numbers from page images (Spark vision) added to page numbers
+- [x] STT keyword list from the model (proper nouns, acronyms)
+- [x] Presentation notes: supporting line from evidence docs, number-checked like cards
+- [x] Rejection rate and retries shown in the console
 
 ## 5. Presentation mode P2
 - [ ] Talk timer: target length, remaining time, "N min left, M pages to go"
