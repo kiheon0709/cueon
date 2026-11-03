@@ -68,7 +68,11 @@ export default function Console() {
         <h1>Cueon</h1>
         {status && (
           <span className={`badge ${status.fake ? 'badge--warn' : 'badge--ok'}`}>
-            {status.fake ? 'Stand-in models (no API key)' : status.model}
+            {status.fake
+              ? 'Stand-in models (no API key)'
+              : status.backend === 'glimmer'
+                ? `Local mode · ${status.model} (material stays on this machine)`
+                : status.model}
           </span>
         )}
         {status && <span className="badge">Glasses connected: {status.hud_clients}</span>}
@@ -395,7 +399,7 @@ function Live({status, run}: {status: Status | null; run: Run}) {
             <button className="ghost" onClick={() => run(() => api('/api/page/1', {method: 'POST'}))}>Page ▶</button>
           </>
         )}
-        <button className={micOn ? 'on' : ''} disabled={status?.fake} onClick={toggleMic} title={status?.fake ? 'Needs MODEL_API_KEY' : ''}>
+        <button className={micOn ? 'on' : ''} disabled={!status?.stt} onClick={toggleMic} title={status?.stt ? '' : 'Needs MODEL_API_KEY'}>
           {micOn ? '■ Mic on' : '🎙 Mic'}
         </button>
       </div>

@@ -72,7 +72,9 @@ def save() -> None:
 def status() -> dict:
     return {
         "fake": config.fake_mode(),
-        "model": config.SPARK_MODEL,
+        "backend": getattr(model, "backend", "spark"),
+        "model": getattr(model, "model", config.SPARK_MODEL),
+        "stt": config.stt_available(),
         "mode": pipeline.mode,
         "listening": pipeline.listening,
         "hud_clients": len(bus.clients),
@@ -316,7 +318,7 @@ async def audio(ws: WebSocket) -> None:
     """Raw PCM16 mono 24 kHz from the console microphone (or any client), relayed to Voice Transcribe."""
     await ws.accept()
     key = config.api_key()
-    if config.fake_mode() or key is None:
+    if not config.stt_available() or key is None:
         await ws.send_text(json.dumps({"type": "error", "message": "No MODEL_API_KEY: type questions instead."}))
         await ws.close()
         return

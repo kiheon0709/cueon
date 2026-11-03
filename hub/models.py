@@ -195,6 +195,12 @@ class SparkModel:
         self.model = model
         self.cache_stats: list[dict] = []  # per call: prompt and cached tokens, for the console
 
+    backend = "spark"
+
+    def _options(self, cache_key: str, effort: str) -> dict:
+        """Model-specific request fields: Spark's prompt cache key and reasoning effort."""
+        return {"prompt_cache_key": cache_key, "reasoning_effort": effort}
+
     def _messages(self, library: Library, task: str) -> tuple[list[dict], str]:
         prefix = INSTRUCTIONS + library.as_prompt()
         key = "cueon-" + hashlib.sha256(prefix.encode()).hexdigest()[:16]
@@ -216,8 +222,7 @@ class SparkModel:
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
-            prompt_cache_key=key,
-            reasoning_effort=effort,
+            **self._options(key, effort),
             response_format={"type": "json_schema", "json_schema": {"name": task_name, "schema": schema}},
         )
         self._record(task_name, response.usage, started)
@@ -247,8 +252,7 @@ class SparkModel:
         stream = await self.client.chat.completions.create(
             model=self.model,
             messages=messages,
-            prompt_cache_key=key,
-            reasoning_effort="minimal",
+            **self._options(key, "minimal"),
             stream=True,
             stream_options={"include_usage": True},
         )
@@ -270,9 +274,27 @@ class SparkModel:
         messages, key = self._messages(library, "Reply with OK.")
         started = time.perf_counter()
         response = await self.client.chat.completions.create(
-            model=self.model, messages=messages, prompt_cache_key=key, reasoning_effort="minimal"
+            model=self.model, messages=messages, **self._options(key, "minimal")
         )
         self._record("warm", response.usage, started)
+
+
+class GlimmerModel(SparkModel):
+    """Local mode: Muse Glimmer on the presenter's own machine, so the material never leaves it.
+
+    Any OpenAI-compatible runtime works (llama.cpp `llama-server` on :8080 by default, Ollama,
+    vLLM, SGLang). The runtime keeps the shared prefix in its KV cache on its own, so there is no
+    cache key, and reasoning effort is left to the server's settings.
+    """
+
+    backend = "glimmer"
+
+    def __init__(self, base_url: str = config.LOCAL_BASE_URL, model: str = config.LOCAL_MODEL, http_client=None) -> None:
+        super().__init__("local-only", base_url=base_url, model=model, http_client=http_client)
+        self.client.timeout = 300  # a 30B model on a laptop is slower than the API
+
+    def _options(self, cache_key: str, effort: str) -> dict:
+        return {}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -291,6 +313,8 @@ def _content_lines(page: Page) -> list[str]:
 
 class FakeModel:
     """Answers from the material with plain text matching, so the whole app runs without a key."""
+
+    backend = "stand-in"
 
     def __init__(self, delay: float = 0.05) -> None:
         self.delay = delay
@@ -364,6 +388,9 @@ class FakeModel:
 
 
 def make_model() -> Model:
+    if config.BACKEND == "glimmer":
+        log.info("Local mode: Muse Glimmer at %s (%s)", config.LOCAL_BASE_URL, config.LOCAL_MODEL)
+        return GlimmerModel()
     key = config.api_key()
     if config.fake_mode() or key is None:
         log.info("Using the stand-in model (no MODEL_API_KEY or CUEON_FAKE=1)")

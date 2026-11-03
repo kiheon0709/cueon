@@ -7,6 +7,10 @@ BASE_URL = os.environ.get("MODEL_BASE_URL", "https://api.meta.ai/v1")
 SPARK_MODEL = os.environ.get("SPARK_MODEL", "muse-spark-1.3")
 ASR_URL = os.environ.get("ASR_URL", "wss://api.meta.ai/v1/asr/realtime")
 ASR_MODEL = os.environ.get("ASR_MODEL", "muse-voice-transcribe-1.0")
+# "spark" (Meta Model API) or "glimmer" (local mode: Muse Glimmer on this machine)
+BACKEND = os.environ.get("MODEL_BACKEND", "spark").lower()
+LOCAL_BASE_URL = os.environ.get("LOCAL_BASE_URL", "http://localhost:8080/v1")
+LOCAL_MODEL = os.environ.get("LOCAL_MODEL", "muse-glimmer-30b")
 DATA_DIR = Path(os.environ.get("CUEON_DATA", "data"))
 
 
@@ -15,5 +19,12 @@ def api_key() -> str | None:
 
 
 def fake_mode() -> bool:
-    """Run on stand-ins when asked to, or when there is no key to call the real models with."""
-    return os.environ.get("CUEON_FAKE") == "1" or api_key() is None
+    """Run the models on stand-ins when asked to, or when there is no key and no local model."""
+    if os.environ.get("CUEON_FAKE") == "1":
+        return True
+    return BACKEND != "glimmer" and api_key() is None
+
+
+def stt_available() -> bool:
+    """Speech-to-text is always Muse Voice Transcribe in the cloud, so it needs the key."""
+    return api_key() is not None and os.environ.get("CUEON_FAKE") != "1"

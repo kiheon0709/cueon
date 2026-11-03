@@ -18,8 +18,8 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] Cache warm-up every few minutes while idle
 
 ## 3. Glimmer local mode (P1, Open Weights bonus)
-- [ ] OpenAI-compatible local backend (ollama / llama.cpp server), MODEL_BACKEND=glimmer
-- [ ] Console badge + README section
+- [x] OpenAI-compatible local backend (ollama / llama.cpp server), MODEL_BACKEND=glimmer
+- [x] Console badge + README section
 
 ## 4. Prep Agent depth
 - [ ] Audience perspectives (investor / technical judge / general) in question generation

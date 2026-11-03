@@ -90,6 +90,25 @@ the same.
 For front-end work, `cd hud && npm run dev` serves both pages with hot reload and proxies the API
 to the hub on port 8000 (`/console.html`, and `/` for the glasses view).
 
+### Local mode (Muse Glimmer)
+
+For material that shouldn't leave your laptop (an unreleased IR deck, a paper draft), run the
+open-weights Muse Glimmer locally and point Cueon at it. Prep and live cards are then written on
+your machine; only the question audio goes to Muse Voice Transcribe.
+
+```bash
+# Serve Glimmer with any OpenAI-compatible runtime, e.g. llama.cpp (weights: huggingface.co/meta-models)
+llama-server -m Muse-Glimmer-30B-Q4_K_M.gguf --port 8080 -c 65536 --jinja
+
+# .env
+MODEL_BACKEND=glimmer
+LOCAL_BASE_URL=http://localhost:8080/v1   # Ollama: :11434/v1, vLLM: :8000/v1
+LOCAL_MODEL=muse-glimmer-30b              # what GET /v1/models reports
+```
+
+The prompts and checks are the same as with Spark. The runtime reuses the shared material prefix
+from its KV cache, and Cueon leans more on prepared cards because a local 30B model is slower.
+
 ### On the glasses
 
 Serve the glasses view where the Ray-Ban Display can reach it and point it at the hub with the

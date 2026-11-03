@@ -74,3 +74,17 @@ def test_notes_and_warm(library):
     assert notes[0].bridge == "So how fast?"
     asyncio.run(model.warm(library))
     assert server.state.requests[-1]["reasoning_effort"] == "minimal"
+
+
+def test_glimmer_local_mode_uses_the_same_prompts_without_cloud_fields(library):
+    from hub.models import GlimmerModel
+
+    server = make_server(ANSWERS, LIVE)
+    client = httpx.AsyncClient(transport=httpx.ASGITransport(app=server), base_url="http://local")
+    model = GlimmerModel(base_url="http://local/v1", http_client=client)
+    result = asyncio.run(build_bank(model, library))
+    assert len(result.bank.entries) == 2
+    requests = server.state.requests
+    assert all(r["model"] == "muse-glimmer-30b" for r in requests)
+    assert not any("prompt_cache_key" in r or "reasoning_effort" in r for r in requests)
+    assert len({r["messages"][0]["content"] for r in requests}) == 1  # same prefix → runtime KV cache reuse

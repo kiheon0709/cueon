@@ -32,7 +32,9 @@ export interface Doc {
 
 export interface Status {
   fake: boolean;
+  backend: 'spark' | 'glimmer' | 'stand-in';
   model: string;
+  stt: boolean;
   mode: 'qa' | 'present';
   listening: boolean;
   hud_clients: number;
