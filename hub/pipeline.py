@@ -43,6 +43,7 @@ log = logging.getLogger("cueon")
 Mode = Literal["qa", "present"]
 
 FALLBACK_S = 1.2
+DIM_AFTER_S = 10.0  # then the card dims so the presenter looks back at the audience
 SPECULATE_MIN_WORDS = 5
 SAME_QUESTION = 0.9  # final transcript close enough to the speculated one to keep its answer
 _QUESTION_START = re.compile(
@@ -237,6 +238,7 @@ class Pipeline:
             self._drop_speculation()
             await self._show_bank(qid, question, match, ranked, record, ms)
             self._log(record)
+            self._dim_later(qid)
             return qid
 
         record.update(path="live", score=round(ranked[0].score, 3) if ranked else None)
@@ -293,7 +295,18 @@ class Pipeline:
         record["card"] = ms()
         self.last_shown = None
         self._log(record)
+        self._dim_later(qid)
         return qid
+
+    def _dim_later(self, qid: str) -> None:
+        async def dim() -> None:
+            await asyncio.sleep(DIM_AFTER_S)
+            last = self.bus.last
+            if last.get("state") == "card" and last.get("id") == qid:
+                fields = {k: v for k, v in last.items() if k not in ("type", "state")}
+                await self.bus.show("card", **{**fields, "dimmed": True})
+
+        self._dim_task = asyncio.create_task(dim())
 
     def _bank_card(self, match: Match, question: str) -> dict:
         card = match.entry.card.model_dump()

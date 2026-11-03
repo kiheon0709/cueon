@@ -12,8 +12,10 @@ from hub.workspace import Workspace
 class Bus:
     def __init__(self):
         self.shown: list[dict] = []
+        self.last: dict = {}
 
     async def show(self, state, **fields):
+        self.last = {"type": "hud", "state": state, **fields}
         self.shown.append({"state": state, **fields})
 
 
@@ -96,3 +98,16 @@ def test_swipe_flips_to_runner_up_and_short_input_asks_to_repeat():
     assert cards[0]["choices"] == 2 and cards[1]["choice"] == 2
     assert {cards[0]["lead"], cards[1]["lead"]} == {"1.5s", "$0.18/h"}
     assert bus.shown[-1]["state"] == "repeat"
+
+
+def test_card_dims_after_reading_time(monkeypatch):
+    monkeypatch.setattr("hub.pipeline.DIM_AFTER_S", 0.01)
+    bus = Bus()
+    pipeline = Pipeline(bus, SlowModel(delay=0), workspace())
+
+    async def run():
+        await pipeline.answer("What's the latency?")
+        await asyncio.sleep(0.05)
+
+    asyncio.run(run())
+    assert bus.shown[-1]["dimmed"] and bus.shown[-1]["lead"] == "1.5s"

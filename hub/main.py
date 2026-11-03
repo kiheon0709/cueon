@@ -335,6 +335,8 @@ async def hud(ws: WebSocket) -> None:
                 await pipeline.toggle_listen()
             elif kind == "page":
                 await pipeline.swipe(int(message.get("delta", 1)))
+            elif kind == "mode" and message.get("mode") in ("qa", "present"):
+                await pipeline.set_mode(message["mode"])
     except WebSocketDisconnect:
         bus.disconnect(ws)
 

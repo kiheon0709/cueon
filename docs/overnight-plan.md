@@ -32,9 +32,9 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] Talk timer: target length, remaining time, "N min left, M pages to go"
 
 ## 6. HUD / console UI-UX
-- [ ] HUD: confidence dot, tentative/live states, layout polish to spec (25px+ type, 5 lines max)
+- [x] HUD: tentative/live/candidate states, layout to Meta UI Toolkit rules (body-scale type, tokens, one focus target)
 - [ ] HUD: `?device=xreal` placement option
-- [ ] HUD: run Meta's webapp checker (meta-wearables-webapp check-webapp.mjs)
+- [x] HUD: run Meta's webapp checker (meta-wearables-webapp check-webapp.mjs) — passes
 - [ ] Console: drag-and-drop upload, glasses-size preview per card, live transcript, prep stats
 
 ## 7. Evaluation

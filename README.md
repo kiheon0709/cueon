@@ -113,8 +113,12 @@ from its KV cache, and Cueon leans more on prepared cards because a local 30B mo
 
 Serve the glasses view where the Ray-Ban Display can reach it and point it at the hub with the
 `hub` query parameter, for example `https://<host>/?hub=wss://<hub-host>/hud`. Neural Band input
-arrives as keys: pinch (Enter) expands the card, swipe up (ArrowUp) toggles listening, swipe
-left/right corrects the page in presentation mode.
+arrives as keys: swipe up toggles listening, swipe
+left/right flips to the runner-up card (Q&A) or corrects the page (presentation), swipe down shows
+all points, and pinch presses the on-lens button (Listen / Stop, or Start Q&A while presenting).
+
+The glasses view passes Meta's webapp checker (`meta-wearables-webapp` `check-webapp.mjs`):
+UI Toolkit structure, focus, overflow and console checks in a real browser.
 
 ### Use
 

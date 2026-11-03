@@ -37,16 +37,21 @@ export interface HudMessage {
   short?: string;
   /** Sent on (re)connect: the state was already on screen, so don't ack it as a new render. */
   replay?: boolean;
+  /** Set by the hub once the card has been up long enough to read. */
+  dimmed?: boolean;
 }
 
 const IDLE: HudMessage = {type: 'hud', state: 'idle'};
 
-function hubUrl(): string {
+function hubUrl(): string | null {
   const fromQuery = new URLSearchParams(location.search).get('hub');
   if (fromQuery) return fromQuery;
-  // Served by the hub (or the Vite dev proxy): same host. Opened as a file or elsewhere: local hub.
-  if (location.protocol.startsWith('http')) return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/hud`;
-  return 'ws://127.0.0.1:8000/hud';
+  // Served by the hub at /glasses, or by the Vite dev server (which proxies /hud): same host.
+  // Anywhere else (a static host such as Vercel) needs ?hub=wss://… to know where the hub is.
+  if (location.pathname.startsWith('/glasses') || import.meta.env.DEV) {
+    return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/hud`;
+  }
+  return null;
 }
 
 /** Connects to the hub, reconnecting after drops. Returns the latest HUD message and a sender. */
@@ -59,8 +64,11 @@ export function useHub() {
     let closed = false;
     let retry: number | undefined;
 
+    const url = hubUrl();
+    if (!url) return;
+
     const connect = () => {
-      const socket = new WebSocket(hubUrl());
+      const socket = new WebSocket(url);
       socketRef.current = socket;
       socket.onopen = () => setConnected(true);
       socket.onmessage = event => {
