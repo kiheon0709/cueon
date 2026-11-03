@@ -1,18 +1,20 @@
 """Mandatory card checks, run inside save_card so the agent can't skip them (Agents 102 pattern).
 
-Only deterministic checks live here. The LLM-as-a-judge check plugs in later through Prep.
+The deterministic checks run first; the LLM judge only sees cards that already passed them.
 """
 
-import re
+from collections.abc import Awaitable, Callable
 
 from hub.cards import Card
-from hub.deck import Deck, numbers_in
+from hub.sources import Library, numbers_in
 
 MAX_LEAD_WORDS = 12
 MAX_POINTS = 3
 
+Judge = Callable[[Card], Awaitable[list[str]]]
 
-def check_card(card: Card, deck: Deck) -> list[str]:
+
+def check_card(card: Card, library: Library) -> list[str]:
     """Return problems with the card; empty means it passed."""
     problems = []
 
@@ -21,24 +23,27 @@ def check_card(card: Card, deck: Deck) -> list[str]:
     if len(card.points) > MAX_POINTS:
         problems.append(f"Card has {len(card.points)} points; keep it to {MAX_POINTS} or fewer.")
 
-    match = re.fullmatch(r"Slide (\d+)", card.source or "")
-    slide = deck.slide(int(match.group(1))) if match else None
-    if slide is None:
-        problems.append(f"Source {card.source!r} is not a slide in this deck. Use 'Slide N'.")
+    found = library.resolve(card.source)
+    if found is None:
+        aliases = ", ".join(d.alias for d in library.documents)
+        problems.append(f"Source {card.source!r} is not a page in the material. Use '<alias> p.<n>' with one of: {aliases}.")
         return problems
+    doc, page = found
 
-    # Every number on the card must come from the cited slide (blocks invented figures).
+    # Every number on the card must come from the cited page (blocks invented figures).
     card_numbers = numbers_in(" ".join([card.lead, *card.points]))
-    missing = sorted(card_numbers - slide.numbers)
+    missing = sorted(card_numbers - page.numbers)
     if missing:
-        problems.append(f"Numbers {', '.join(missing)} are not on Slide {slide.number}.")
+        problems.append(f"Numbers {', '.join(missing)} are not on {doc.alias} p.{page.number}.")
 
     return problems
 
 
-def save_card(card: Card, deck: Deck, saved: list[Card]) -> list[str]:
+async def save_card(card: Card, library: Library, saved: list[Card], judge: Judge | None = None) -> list[str]:
     """Save the card only if it passes every check. Returns the problems (empty = saved)."""
-    problems = check_card(card, deck)
+    problems = check_card(card, library)
+    if not problems and judge is not None:
+        problems = await judge(card)
     if not problems:
         saved.append(card)
     return problems

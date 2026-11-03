@@ -12,3 +12,5 @@ dist/
 
 # os
 .DS_Store
+data/
+.env
