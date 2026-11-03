@@ -117,6 +117,9 @@ arrives as keys: swipe up toggles listening, swipe
 left/right flips to the runner-up card (Q&A) or corrects the page (presentation), swipe down shows
 all points, and pinch presses the on-lens button (Listen / Stop, or Start Q&A while presenting).
 
+Without Ray-Ban Display, `?device=xreal` draws the same view as a small panel low and to the right
+of a full-screen display glasses (black is transparent there too).
+
 The glasses view passes Meta's webapp checker (`meta-wearables-webapp` `check-webapp.mjs`):
 UI Toolkit structure, focus, overflow and console checks in a real browser.
 

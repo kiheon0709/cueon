@@ -90,3 +90,16 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+[data-device='xreal'] body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 12% 10% 0;
+}
+
+[data-device='xreal'] #root {
+  inline-size: 34%;
+  block-size: auto;
+  aspect-ratio: 1;
+}

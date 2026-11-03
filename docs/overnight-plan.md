@@ -33,7 +33,7 @@ Status: [ ] todo · [~] doing · [x] done
 
 ## 6. HUD / console UI-UX
 - [x] HUD: tentative/live/candidate states, layout to Meta UI Toolkit rules (body-scale type, tokens, one focus target)
-- [ ] HUD: `?device=xreal` placement option
+- [x] HUD: `?device=xreal` placement option
 - [x] HUD: run Meta's webapp checker (meta-wearables-webapp check-webapp.mjs) — passes
 - [ ] Console: drag-and-drop upload, glasses-size preview per card, live transcript, prep stats
 
