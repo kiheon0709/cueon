@@ -186,10 +186,12 @@ NOTES_SCHEMA = {
 
 
 class SparkModel:
-    def __init__(self, api_key: str, base_url: str = config.BASE_URL, model: str = config.SPARK_MODEL) -> None:
+    def __init__(
+        self, api_key: str, base_url: str = config.BASE_URL, model: str = config.SPARK_MODEL, http_client=None
+    ) -> None:
         from openai import AsyncOpenAI  # the SDK does not read MODEL_API_KEY itself
 
-        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=60, max_retries=2)
+        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=60, max_retries=2, http_client=http_client)
         self.model = model
         self.cache_stats: list[dict] = []  # per call: prompt and cached tokens, for the console
 
@@ -216,7 +218,7 @@ class SparkModel:
             messages=messages,
             prompt_cache_key=key,
             reasoning_effort=effort,
-            response_format={"type": "json_schema", "json_schema": {"name": task_name, "schema": schema, "strict": True}},
+            response_format={"type": "json_schema", "json_schema": {"name": task_name, "schema": schema}},
         )
         self._record(task_name, response.usage, started)
         return json.loads(response.choices[0].message.content or "{}")
@@ -268,7 +270,7 @@ class SparkModel:
         messages, key = self._messages(library, "Reply with OK.")
         started = time.perf_counter()
         response = await self.client.chat.completions.create(
-            model=self.model, messages=messages, prompt_cache_key=key, reasoning_effort="minimal", max_tokens=5
+            model=self.model, messages=messages, prompt_cache_key=key, reasoning_effort="minimal"
         )
         self._record("warm", response.usage, started)
 
