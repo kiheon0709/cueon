@@ -38,11 +38,11 @@ Status: [ ] todo · [~] doing · [x] done
 - [x] Console: drag-and-drop upload, lens-style card previews, prep stats, early-start/fallback markers
 
 ## 7. Evaluation
-- [ ] eval/bench.py: N questions through the hub, p50/p95 per stage, markdown table
-- [ ] eval/matching: paraphrase set → hit rate / wrong-card rate vs threshold
-- [ ] eval/experiment kit: question sets A/B, counterbalancing, rubric, analysis → chart
+- [x] eval/bench.py: N questions through the hub, p50/p95 per stage, markdown table
+- [x] eval/matching: paraphrase set → hit rate / wrong-card rate vs threshold
+- [x] eval/experiment kit: question sets A/B, counterbalancing, rubric, analysis → chart
 
 ## 8. Demo + submission
-- [ ] samples/: Cueon pitch deck PDF + evidence CSV for the demo
+- [x] samples/: Cueon pitch deck PDF + evidence CSV for the demo
 - [ ] docs/ARCHITECTURE.md, demo video script, submission text, X post draft
 - [ ] End-to-end Playwright check + screenshots

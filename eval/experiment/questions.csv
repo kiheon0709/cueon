@@ -1,0 +1,11 @@
+set,id,question,kind,answer_key
+A,A1,"How fast does a card appear after a question?",number,"Target 1.5 s p50, 2.5 s p95 (DECK p.6)"
+A,A2,"How do you stop the model from inventing numbers?",fact,"Numbers must be on the cited page; judge model checks claims; rewrite up to 3 times (DECK p.5)"
+A,A3,"What share of early-career researchers avoid English conferences?",number,"About 30% (DECK p.3 / RESEARCH p.6)"
+A,A4,"Who is the product for?",fact,"Non-native speakers presenting in English: hackathon finalists, founders, researchers (DECK p.3)"
+A,A5,"What does it do while I'm still presenting?",slide,"Follows page by page, flags skipped points, time left and short version (DECK p.7)"
+B,B1,"How long a pause already sounds like hesitation?",number,"0.6 to 1.2 seconds (DECK p.2)"
+B,B2,"What happens to the audio you hear?",fact,"Never stored; push to listen; no speaker identification (DECK p.8)"
+B,B3,"How well do non-native listeners recognise sentences in quiet?",number,"Native 99.6%, Chinese in US 70.7%, Chinese in China 41.0% (RESEARCH p.2)"
+B,B4,"How is this different from a teleprompter?",fact,"Teleprompter is a fixed script; Cueon answers live questions from your material (DECK p.9)"
+B,B5,"Which slide explains the workflow before the talk?",slide,"How it works (DECK p.4)"
