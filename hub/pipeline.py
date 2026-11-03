@@ -252,6 +252,7 @@ class Pipeline:
         tentative = ranked[0] if ranked and ranked[0].score >= TENTATIVE_THRESHOLD else None
         deadline = t0 + FALLBACK_S
         while True:
+            run.changed.clear()  # before reading run.text, so a chunk that lands meanwhile still wakes us
             card = cardtext.parse(run.text, question)
             if card and card != shown:
                 if shown is None:
@@ -271,7 +272,6 @@ class Pipeline:
                     )
                     tentative = None
                     continue
-            run.changed.clear()
             if not run.done:
                 with contextlib.suppress(asyncio.TimeoutError):
                     await asyncio.wait_for(run.changed.wait(), timeout)
