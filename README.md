@@ -24,7 +24,7 @@ A working prototype, run end to end with the real Muse Spark and Muse Voice Tran
 
 ## New work
 
-All code in this repository was written during the hackathon (Oct 26 – Nov 4, 2026). No prior code
+All code in this repository was written during the hackathon (Oct 26 – Nov 5, 2026). No prior code
 was reused. Third-party libraries are listed in `pyproject.toml` and `hud/package.json`.
 
 ## How it works
