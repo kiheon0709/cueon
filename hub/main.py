@@ -359,7 +359,7 @@ async def audio(ws: WebSocket) -> None:
 
     from hub.stt import transcribe
 
-    queue: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=8)
+    queue: asyncio.Queue[bytes | None] = asyncio.Queue(maxsize=64)  # about 5 s, so words spoken while the session opens survive
 
     async def chunks():
         while (chunk := await queue.get()) is not None:

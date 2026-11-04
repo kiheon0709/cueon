@@ -1,5 +1,6 @@
 """Everything prepared before the talk, saved under data/ so a restart keeps it."""
 
+import re
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -8,6 +9,9 @@ from hub.bank import Bank
 from hub.models import PageNotes
 from hub.prep import Gap
 from hub.sources import Library
+
+MAX_KEYWORD = 30  # Voice Transcribe rejects the whole session over a longer keyword
+CITATION = re.compile(r"\s*[—–-]\s*\S+ p\.\d+\s*$")
 
 
 class Workspace(BaseModel):
@@ -33,9 +37,10 @@ class Workspace(BaseModel):
         terms: list[str] = list(self.stt_terms)
         for doc in self.library.documents:
             terms.append(doc.alias)
-            terms += [p.title[:40] for p in doc.pages if p.title.strip()]
+            terms += [p.title for p in doc.pages if p.title.strip()]
         seen: list[str] = []
         for term in terms:
-            if term.strip() and term not in seen:
+            term = CITATION.sub("", term).strip()  # the model tends to cite its terms too
+            if term and len(term) <= MAX_KEYWORD and term not in seen:
                 seen.append(term)
         return seen[:50]

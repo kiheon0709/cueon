@@ -6,6 +6,7 @@ import json
 from websockets.asyncio.server import serve
 
 from hub import config, stt
+from hub.workspace import Workspace
 
 
 def test_transcribe_handshake_audio_and_events(monkeypatch):
@@ -43,3 +44,10 @@ def test_transcribe_handshake_audio_and_events(monkeypatch):
     assert handshake["mode"] == "ENDPOINTING" and handshake["audioEncoding"] == "PCM_24KHZ"
     assert handshake["model"] == "muse-voice-transcribe-1.0" and handshake["keywords"] == ["Cueon", "Spark"]
     assert seen["audio"] == 3 * 1920
+
+
+def test_keywords_fit_the_speech_service():
+    workspace = Workspace(stt_terms=["Muse Voice Transcribe — DECK p.1", "Academy of Management Journal — RESEARCH p.5", "Cueon"])
+    assert workspace.keywords() == ["Muse Voice Transcribe", "Academy of Management Journal", "Cueon"]
+    workspace = Workspace(stt_terms=["a term much longer than the thirty characters allowed"])
+    assert workspace.keywords() == []
