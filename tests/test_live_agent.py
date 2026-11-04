@@ -151,3 +151,13 @@ def test_tapping_listen_cancels_the_answer_being_written():
     asyncio.run(run())
     assert next(iter(pipeline.records.values()))["path"] == "cancelled"
     assert pipeline.bus.shown[-1]["state"] == "listening"
+
+
+def test_question_detection_english_and_korean():
+    from hub.pipeline import looks_like_question
+
+    assert looks_like_question("how fast is it")
+    assert looks_like_question("레이턴시가 얼마나 되나요")
+    assert looks_like_question("경쟁사 대비 뭐가 다른가요")
+    assert not looks_like_question("오늘 발표 잘 들었습니다")
+    assert not looks_like_question("thanks for the talk")

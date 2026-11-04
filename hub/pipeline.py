@@ -61,9 +61,16 @@ def percentile(values: list[float], q: float) -> float | None:
     return statistics.quantiles(values, n=100, method="inclusive")[int(q) - 1]
 
 
+# Korean questions end in a question form rather than starting with a question word.
+_KOREAN_QUESTION = re.compile(r"(까|니|나요|가요|죠|어요|아요|에요|예요|래요|을까요|ㄹ까요|는지)\s*$")
+_KOREAN_WORDS = re.compile(r"(무엇|뭐|왜|어떻게|어떤|언제|어디|누가|몇|얼마)")
+
+
 def looks_like_question(text: str) -> bool:
     text = text.strip()
-    return text.endswith("?") or bool(_QUESTION_START.match(text)) or "?" in text
+    if "?" in text or _QUESTION_START.match(text):
+        return True
+    return bool(_KOREAN_QUESTION.search(text) and _KOREAN_WORDS.search(text))
 
 
 class LiveRun:
