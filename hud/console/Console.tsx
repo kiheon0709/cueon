@@ -4,6 +4,10 @@ import {startMic, type MicEvent} from './mic';
 
 const ms = (value: number | null | undefined) => (value == null ? '–' : `${Math.round(value)} ms`);
 
+const QUESTION_TYPES = 12;
+
+type Step = 'material' | 'cards' | 'present' | 'developer';
+
 export default function Console() {
   const [status, setStatus] = useState<Status | null>(null);
   const [docs, setDocs] = useState<Doc[]>([]);
@@ -12,6 +16,7 @@ export default function Console() {
   const [notes, setNotes] = useState<PageNotes[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState('');
+  const [step, setStep] = useState<Step | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -29,6 +34,8 @@ export default function Console() {
       setNotes(n);
       setStats(st);
       setError('');
+      // Open where the presenter left off: nothing yet means upload, cards ready means present.
+      setStep(current => current ?? (b.entries.length ? 'present' : 'material'));
     } catch (e) {
       setError(`Hub not reachable: ${(e as Error).message}`);
     }
@@ -43,7 +50,10 @@ export default function Console() {
     const timer = window.setInterval(async () => {
       try {
         const [s, st] = await Promise.all([api<Status>('/api/status'), api<Stats>('/api/stats')]);
-        if (status?.prep.running && !s.prep.running) void refresh();
+        if (status?.prep.running && !s.prep.running) {
+          await refresh();
+          if (!s.prep.error) setStep('cards');
+        }
         setStatus(s);
         setStats(st);
       } catch {
@@ -62,71 +72,73 @@ export default function Console() {
     }
   };
 
+  const steps: {id: Step; label: string; note?: string}[] = [
+    {id: 'material', label: 'Material', note: docs.length ? String(docs.length) : undefined},
+    {id: 'cards', label: 'Cards', note: entries.length ? String(entries.length) : undefined},
+    {id: 'present', label: 'Present'},
+  ];
+
   return (
     <div className="console">
       <header className="top">
         <h1>Cueon</h1>
-        {status && (
-          <span className={`badge ${status.fake ? 'badge--warn' : 'badge--ok'}`}>
-            {status.fake
-              ? 'Stand-in models (no API key)'
-              : status.backend === 'glimmer'
-                ? `Local mode · ${status.model} (material stays on this machine)`
-                : status.model}
-          </span>
-        )}
-        {status && <span className="badge">Glasses connected: {status.hud_clients}</span>}
-        {error && <span className="error">{error}</span>}
+        <nav className="steps">
+          {steps.map((item, index) => (
+            <button key={item.id} className={step === item.id ? 'step step--on' : 'step'} onClick={() => setStep(item.id)}>
+              <span className="step-num">{index + 1}</span>
+              {item.label}
+              {item.note && <span className="step-note">{item.note}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="top-end">
+          {status?.fake && <span className="badge badge--warn">Demo mode: no API key</span>}
+          {status?.backend === 'glimmer' && <span className="badge badge--ok">Local mode</span>}
+          <button className={step === 'developer' ? 'link link--on' : 'link'} onClick={() => setStep('developer')}>
+            Developer
+          </button>
+        </div>
       </header>
+      {error && <p className="error banner">{error}</p>}
 
-      <div className="columns">
-        <section className="left">
-          <Material docs={docs} run={run} />
-          <Prep status={status} entries={entries} gaps={gaps} run={run} />
-          <Bank entries={entries} run={run} />
-          <Gaps gaps={gaps} run={run} />
-          <Notes notes={notes} />
-        </section>
-
-        <section className="right">
-          <Live status={status} run={run} />
-          <Latency stats={stats} />
-        </section>
+      {step === 'material' && <Material docs={docs} status={status} entries={entries} run={run} go={setStep} />}
+      {step === 'cards' && <Cards entries={entries} gaps={gaps} notes={notes} run={run} go={setStep} />}
+      {/* Stays mounted so the microphone and the lens keep running while you look at the cards. */}
+      <div hidden={step !== 'present'}>
+        <Present status={status} entries={entries} run={run} go={setStep} />
       </div>
+      {step === 'developer' && <Developer status={status} stats={stats} />}
     </div>
   );
 }
 
 type Run = (action: () => Promise<unknown>) => Promise<void>;
+type Go = (step: Step) => void;
 
-function Material({docs, run}: {docs: Doc[]; run: Run}) {
+function Material({docs, status, entries, run, go}: {docs: Doc[]; status: Status | null; entries: Entry[]; run: Run; go: Go}) {
   const [alias, setAlias] = useState('');
-  const [role, setRole] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-
   const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const prep = status?.prep;
 
-  const send = (file: File) =>
+  const send = (files: File[]) =>
     run(async () => {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('alias', alias);
-      form.append('role', role);
-      await api('/api/docs', {method: 'POST', body: form});
+      for (const file of files) {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('alias', files.length === 1 ? alias : '');
+        form.append('role', '');
+        await api('/api/docs', {method: 'POST', body: form});
+      }
       setAlias('');
       if (fileRef.current) fileRef.current.value = '';
     });
 
-  const upload = () => {
-    const file = fileRef.current?.files?.[0];
-    if (file) void send(file);
-  };
-
   return (
-    <div className="panel">
-      <h2>1 · Material</h2>
-      <p className="hint">Slides, plans, papers, data. Cards cite pages as “ALIAS p.N”.</p>
-      <div
+    <main className="page page--narrow">
+      <h2>What are you presenting?</h2>
+      <p className="lede">Add your slides and anything that backs them up: plans, papers, data. Cueon answers only from these.</p>
+      <label
         className={`drop${dragging ? ' drop--on' : ''}`}
         onDragOver={e => {
           e.preventDefault();
@@ -136,105 +148,124 @@ function Material({docs, run}: {docs: Doc[]; run: Run}) {
         onDrop={e => {
           e.preventDefault();
           setDragging(false);
-          Array.from(e.dataTransfer.files).forEach(file => void send(file));
+          void send(Array.from(e.dataTransfer.files));
         }}
       >
-        Drop PDF or CSV files here (alias and role below apply to the next file)
-      </div>
-      <div className="row">
-        <input type="file" accept=".pdf,.csv" ref={fileRef} />
-        <input placeholder="Alias (e.g. BP)" value={alias} onChange={e => setAlias(e.target.value)} size={10} />
-        <select value={role} onChange={e => setRole(e.target.value)}>
-          <option value="">Role: auto</option>
-          <option value="main">Main (what you present)</option>
-          <option value="evidence">Evidence</option>
-        </select>
-        <button onClick={upload}>Upload</button>
-      </div>
-      <table>
-        <tbody>
+        <b>Drop PDF or CSV files</b>
+        <span>or click to choose</span>
+        <input
+          type="file"
+          accept=".pdf,.csv"
+          multiple
+          hidden
+          ref={fileRef}
+          onChange={e => void send(Array.from(e.target.files ?? []))}
+        />
+      </label>
+      <label className="field">
+        Short name for citations, optional
+        <input placeholder="BP" value={alias} onChange={e => setAlias(e.target.value)} size={10} />
+      </label>
+
+      {docs.length > 0 && (
+        <ul className="docs">
           {docs.map(doc => (
-            <tr key={doc.alias}>
-              <td><b>{doc.alias}</b></td>
-              <td>{doc.name}</td>
-              <td>{doc.pages} p.</td>
-              <td>
-                <select
-                  value={doc.role}
-                  onChange={e => run(() => api(`/api/docs/${doc.alias}`, {method: 'PATCH', json: {role: e.target.value}}))}
-                >
-                  <option value="main">main</option>
-                  <option value="evidence">evidence</option>
-                </select>
-              </td>
-              <td>
-                <button className="ghost" onClick={() => run(() => api(`/api/docs/${doc.alias}`, {method: 'DELETE'}))}>
-                  Remove
-                </button>
-              </td>
-            </tr>
+            <li key={doc.alias}>
+              <b>{doc.alias}</b>
+              <span className="grow muted">{doc.name} · {doc.pages} pages</span>
+              <select
+                value={doc.role}
+                aria-label={`Role of ${doc.alias}`}
+                onChange={e => run(() => api(`/api/docs/${doc.alias}`, {method: 'PATCH', json: {role: e.target.value}}))}
+              >
+                <option value="main">What I present</option>
+                <option value="evidence">Backup</option>
+              </select>
+              <button className="link" onClick={() => run(() => api(`/api/docs/${doc.alias}`, {method: 'DELETE'}))}>
+                Remove
+              </button>
+            </li>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function Prep({status, entries, gaps, run}: {status: Status | null; entries: Entry[]; gaps: Gap[]; run: Run}) {
-  const [limit, setLimit] = useState(12);
-  const prep = status?.prep;
-  return (
-    <div className="panel">
-      <h2>2 · Prepare</h2>
-      <p className="hint">
-        Predicts likely questions, writes a card for each from your material, checks every number and claim, and
-        retries up to 3 times. What can't be supported shows up as a gap.
-      </p>
-      <div className="row">
-        <label>
-          Question types <input type="number" min={3} max={30} value={limit} onChange={e => setLimit(+e.target.value)} />
-        </label>
-        <button disabled={prep?.running} onClick={() => run(() => api('/api/prep', {method: 'POST', json: {limit}}))}>
-          {prep?.running ? 'Preparing…' : 'Prepare cards'}
-        </button>
-        <span className="hint">{prep?.error ? `Error: ${prep.error}` : prep?.message}</span>
-      </div>
-      <p>
-        <b>{entries.length}</b> cards · <b>{entries.filter(e => e.parent).length}</b> follow-ups · <b>{gaps.length}</b> gaps
-      </p>
-      {prep?.stats && prep.stats.questions > 0 && (
-        <p className="hint">
-          Checks: {prep.stats.first_try}/{prep.stats.questions} cards passed on the first draft,{' '}
-          {prep.stats.retried} fixed after feedback, {prep.stats.gaps} rejected after 3 tries ·{' '}
-          {prep.stats.drafts} drafts written
-          {prep.vision_pages ? ` · numbers read from ${prep.vision_pages} chart pages` : ''}
-        </p>
+        </ul>
       )}
-    </div>
+
+      <div className="cta">
+        <button
+          className="primary"
+          disabled={!docs.length || prep?.running}
+          onClick={() => run(() => api('/api/prep', {method: 'POST', json: {limit: QUESTION_TYPES}}))}
+        >
+          {prep?.running ? 'Preparing…' : entries.length ? 'Prepare cards again' : 'Prepare cards'}
+        </button>
+        {entries.length > 0 && !prep?.running && (
+          <button className="secondary" onClick={() => go('cards')}>Review {entries.length} cards</button>
+        )}
+      </div>
+      {prep?.running && <p className="muted">{prep.message || 'Starting'}. This takes a few minutes.</p>}
+      {prep?.error && <p className="error">{prep.error}</p>}
+      {!prep?.running && !entries.length && (
+        <p className="muted">Cueon predicts the questions you'll get, writes a card for each, and checks every number against the page it cites.</p>
+      )}
+    </main>
   );
 }
 
-function Bank({entries, run}: {entries: Entry[]; run: Run}) {
+function Cards({entries, gaps, notes, run, go}: {entries: Entry[]; gaps: Gap[]; notes: PageNotes[]; run: Run; go: Go}) {
   const parents = entries.filter(e => !e.parent);
   return (
-    <div className="panel">
-      <h2>3 · Card bank</h2>
-      <p className="hint">Matched cards are shown exactly as written here. Edit anything; your edits survive re-prep.</p>
-      {parents.map(entry => (
-        <div key={entry.id} className="entry">
-          <EntryEditor entry={entry} run={run} />
-          {entries
-            .filter(child => child.parent === entry.id)
-            .map(child => (
-              <div key={child.id} className="followup">
-                <span className="tag">follow-up</span>
-                <EntryEditor entry={child} run={run} />
-              </div>
-            ))}
+    <main className="page page--narrow">
+      <div className="page-head">
+        <div>
+          <h2>{entries.length ? `${entries.length} cards ready` : 'No cards yet'}</h2>
+          <p className="lede">Each one appears on your lens exactly as written. Open any card to change it.</p>
         </div>
-      ))}
-      {parents.length === 0 && <p className="hint">No cards yet.</p>}
-    </div>
+        {entries.length > 0 && <button className="primary" onClick={() => go('present')}>Rehearse</button>}
+      </div>
+      {!entries.length && <button className="secondary" onClick={() => go('material')}>Add material</button>}
+      <Gaps gaps={gaps} run={run} />
+      <ul className="cards">
+        {parents.map(entry => (
+          <CardRow key={entry.id} entry={entry} followUps={entries.filter(child => child.parent === entry.id)} run={run} />
+        ))}
+      </ul>
+      {notes.length > 0 && (
+        <details className="notes">
+          <summary>Notes for each slide ({notes.length})</summary>
+          {notes.map(n => (
+            <div key={n.page} className="note">
+              <b>p.{n.page}</b> {n.points.join(' · ')}
+              {n.short && <div className="muted">Short version: {n.short}</div>}
+              {n.support && <div className="muted">Backup: {n.support} ▸ {n.support_source}</div>}
+            </div>
+          ))}
+        </details>
+      )}
+    </main>
+  );
+}
+
+function CardRow({entry, followUps, run}: {entry: Entry; followUps: Entry[]; run: Run}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className={open ? 'card card--open' : 'card'}>
+      <button className="card-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span className="grow">
+          <span className="card-lead">{entry.card.lead}</span>
+          <span className="muted card-q">{entry.question}</span>
+        </span>
+        {entry.edited && <span className="tag">edited</span>}
+        <span className="muted">{entry.card.source}</span>
+      </button>
+      {open && (
+        <div className="card-body">
+          <EntryEditor entry={entry} run={run} />
+          {followUps.length > 0 && <h3>If they follow up</h3>}
+          {followUps.map(child => (
+            <EntryEditor key={child.id} entry={child} run={run} />
+          ))}
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -249,27 +280,17 @@ function EntryEditor({entry, run}: {entry: Entry; run: Run}) {
 
   if (!editing) {
     return (
-      <div className="card-view" onDoubleClick={() => setEditing(true)}>
-        <div className="q">
-          <span className="tag">{entry.qtype}</span>
-          {entry.audience && <span className="tag">{entry.audience}</span>} {entry.question}
-          {entry.edited && <span className="tag tag--edited">edited</span>}
-          {entry.hits > 0 && <span className="tag tag--hit">hit ×{entry.hits}</span>}
-        </div>
+      <div className="card-view">
         <div className="lens">
           <div className="lens-lead">{entry.card.lead}</div>
-          {entry.card.points.slice(0, 2).map(p => (
+          {entry.card.points.map(p => (
             <div key={p}>{p}</div>
           ))}
-          {entry.card.points.length > 2 && <div className="lens-more">+{entry.card.points.length - 2} on swipe down</div>}
           <div className="lens-source">{entry.card.source}</div>
         </div>
-        <div className="hint">Matches: {[entry.question, ...entry.variants].join(' · ')}</div>
-        <div className="meta">
-          <button className="ghost" onClick={() => setEditing(true)}>Edit</button>
-          <button className="ghost" onClick={() => run(() => api(`/api/bank/${entry.id}`, {method: 'DELETE'}))}>
-            Delete
-          </button>
+        <div className="card-actions">
+          <button className="link" onClick={() => setEditing(true)}>Edit</button>
+          <button className="link" onClick={() => run(() => api(`/api/bank/${entry.id}`, {method: 'DELETE'}))}>Delete</button>
         </div>
       </div>
     );
@@ -302,8 +323,8 @@ function EntryEditor({entry, run}: {entry: Entry; run: Run}) {
         <p key={p} className="error">⚠ {p}</p>
       ))}
       <div className="row">
-        <button onClick={save}>Save</button>
-        <button className="ghost" onClick={() => setEditing(false)}>Close</button>
+        <button className="primary" onClick={save}>Save</button>
+        <button className="link" onClick={() => setEditing(false)}>Close</button>
       </div>
     </div>
   );
@@ -315,22 +336,20 @@ function Gaps({gaps, run}: {gaps: Gap[]; run: Run}) {
   const [source, setSource] = useState('');
   if (gaps.length === 0) return null;
   return (
-    <div className="panel">
-      <h2>Gaps · your material doesn't answer these</h2>
-      <p className="hint">Decide how you'll answer, or add the evidence and prepare again.</p>
+    <section className="gaps">
+      <h3>{gaps.length === 1 ? '1 question your material can\'t answer' : `${gaps.length} questions your material can't answer`}</h3>
       {gaps.map(gap => (
         <div key={gap.question} className="gap">
           <b>{gap.question}</b>
-          <ul>
-            {gap.problems.map(p => (
-              <li key={p} className="hint">{p}</li>
-            ))}
-          </ul>
+          {gap.problems.map(p => (
+            <div key={p} className="muted">{p}</div>
+          ))}
           {open === gap.question ? (
             <div className="row">
-              <input placeholder="Your answer (lead)" value={lead} onChange={e => setLead(e.target.value)} />
-              <input placeholder="Source (optional)" value={source} onChange={e => setSource(e.target.value)} size={10} />
+              <input className="grow" placeholder="What you'd say" value={lead} onChange={e => setLead(e.target.value)} />
+              <input placeholder="Source, optional" value={source} onChange={e => setSource(e.target.value)} size={12} />
               <button
+                className="secondary"
                 onClick={() =>
                   run(async () => {
                     await api('/api/bank', {method: 'POST', json: {question: gap.question, lead, source: source || null}});
@@ -344,36 +363,15 @@ function Gaps({gaps, run}: {gaps: Gap[]; run: Run}) {
               </button>
             </div>
           ) : (
-            <button className="ghost" onClick={() => setOpen(gap.question)}>Write my own card</button>
+            <button className="link" onClick={() => setOpen(gap.question)}>Write my own answer</button>
           )}
         </div>
       ))}
-    </div>
+    </section>
   );
 }
 
-function Notes({notes}: {notes: PageNotes[]}) {
-  if (notes.length === 0) return null;
-  return (
-    <div className="panel">
-      <h2>Presentation notes</h2>
-      <p className="hint">Written before the talk. During the talk nothing is generated; Cueon follows along and flags skipped points.</p>
-      {notes.map(n => (
-        <div key={n.page} className="note">
-          <b>p.{n.page}</b> {n.points.join(' · ')}
-          {n.short && <div className="hint">Short: {n.short}</div>}
-          {n.support && (
-            <div className="hint">
-              Backup: {n.support} ▸ {n.support_source}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Live({status, run}: {status: Status | null; run: Run}) {
+function Present({status, entries, run, go}: {status: Status | null; entries: Entry[]; run: Run; go: Go}) {
   const [text, setText] = useState('');
   const [heard, setHeard] = useState('');
   const [micError, setMicError] = useState('');
@@ -381,14 +379,16 @@ function Live({status, run}: {status: Status | null; run: Run}) {
   const [micOn, setMicOn] = useState(false);
   const glasses = import.meta.env.DEV ? '/' : '/glasses';
   const mode = status?.mode ?? 'qa';
+  const listening = !!status?.listening;
 
-  const toggleMic = async () => {
-    if (stopRef.current) {
-      stopRef.current();
-      stopRef.current = null;
-      setMicOn(false);
-      return;
-    }
+  const stopMic = () => {
+    stopRef.current?.();
+    stopRef.current = null;
+    setMicOn(false);
+  };
+
+  const openMic = async () => {
+    if (stopRef.current) return true;
     try {
       setMicError('');
       stopRef.current = await startMic((event: MicEvent) => {
@@ -400,10 +400,22 @@ function Live({status, run}: {status: Status | null; run: Run}) {
         if (event.transcript) setHeard(event.transcript);
       });
       setMicOn(true);
+      return true;
     } catch (e) {
       setMicError((e as Error).message);
+      return false;
     }
   };
+
+  const listen = async () => {
+    if (!listening && status?.stt && !(await openMic())) return;
+    if (!listening) setHeard('');
+    await run(() => api('/api/listen', {method: 'POST'}));
+  };
+
+  const follow = () => (micOn ? stopMic() : void openMic());
+
+  const setMode = (next: 'qa' | 'present') => run(() => api('/api/mode', {method: 'POST', json: {mode: next}}));
 
   const say = () =>
     run(async () => {
@@ -414,59 +426,108 @@ function Live({status, run}: {status: Status | null; run: Run}) {
     });
 
   return (
-    <div className="panel">
-      <h2>4 · Rehearse / live</h2>
-      <div className="row">
+    <main className="page present">
+      <div className="lens-frame">
+        <iframe title="Glasses view" src={glasses} width={600} height={600} inert />
+        <p className="muted">What your lens shows</p>
+      </div>
+
+      <div className="controls">
         <div className="seg">
-          <button className={mode === 'present' ? 'on' : ''} onClick={() => run(() => api('/api/mode', {method: 'POST', json: {mode: 'present'}}))}>
-            Presenting
-          </button>
-          <button className={mode === 'qa' ? 'on' : ''} onClick={() => run(() => api('/api/mode', {method: 'POST', json: {mode: 'qa'}}))}>
-            Q&amp;A
-          </button>
+          <button className={mode === 'present' ? 'on' : ''} onClick={() => setMode('present')}>While presenting</button>
+          <button className={mode === 'qa' ? 'on' : ''} onClick={() => setMode('qa')}>During Q&amp;A</button>
         </div>
+
+        {!entries.length && (
+          <p className="muted">
+            No cards yet. <button className="link" onClick={() => go('material')}>Add your material first</button>
+          </p>
+        )}
+
         {mode === 'qa' ? (
-          <button className={status?.listening ? 'on' : ''} onClick={() => run(() => api('/api/listen', {method: 'POST'}))}>
-            {status?.listening ? '● Listening' : 'Listen (pinch-up)'}
-          </button>
+          <>
+            <button className={listening ? 'hero hero--on' : 'hero'} onClick={listen}>
+              {listening ? 'Listening… tap to stop' : 'Listen to a question'}
+            </button>
+            <p className="muted">
+              {status?.stt
+                ? 'Tap once for each question. The right card appears on your lens when the person stops talking.'
+                : 'Speech needs an API key. Type a question below.'}
+            </p>
+          </>
         ) : (
           <>
-            <label className="hint">
-              Talk length{' '}
-              <input
-                type="number"
-                min={0}
-                step={0.5}
-                defaultValue={status?.talk_minutes || ''}
-                placeholder="min"
-                onBlur={e => run(() => api('/api/talk', {method: 'POST', json: {minutes: +e.target.value || 0}}))}
-              />
-            </label>
-            <button onClick={() => run(() => api('/api/talk/start', {method: 'POST'}))}>Start clock</button>
-            <button className="ghost" onClick={() => run(() => api('/api/page/-1', {method: 'POST'}))}>◀ Page</button>
-            <button className="ghost" onClick={() => run(() => api('/api/page/1', {method: 'POST'}))}>Page ▶</button>
+            <button className={micOn ? 'hero hero--on' : 'hero'} disabled={!status?.stt} onClick={follow}>
+              {micOn ? 'Following you… tap to stop' : 'Follow my talk'}
+            </button>
+            <p className="muted">Cueon tracks your slide as you speak and tells you when you skip a point.</p>
+            <div className="row">
+              <label className="field field--inline">
+                Talk length, minutes
+                <input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  defaultValue={status?.talk_minutes || ''}
+                  onBlur={e => run(() => api('/api/talk', {method: 'POST', json: {minutes: +e.target.value || 0}}))}
+                />
+              </label>
+              <button className="secondary" onClick={() => run(() => api('/api/talk/start', {method: 'POST'}))}>Start clock</button>
+            </div>
+            <div className="row">
+              <button className="secondary" onClick={() => run(() => api('/api/page/-1', {method: 'POST'}))}>Previous slide</button>
+              <button className="secondary" onClick={() => run(() => api('/api/page/1', {method: 'POST'}))}>Next slide</button>
+            </div>
           </>
         )}
-        <button className={micOn ? 'on' : ''} disabled={!status?.stt} onClick={toggleMic} title={status?.stt ? '' : 'Needs MODEL_API_KEY'}>
-          {micOn ? '■ Mic on' : '🎙 Mic'}
-        </button>
+
+        {heard && (
+          <div className="heard">
+            <span className="muted">Heard</span>
+            {heard}
+          </div>
+        )}
+        {micError && <p className="error">{micError}</p>}
+
+        <div className="type-box">
+          <label htmlFor="say">{mode === 'qa' ? 'Or type a question to rehearse' : 'Or type a sentence to rehearse'}</label>
+          <div className="row">
+            <input
+              id="say"
+              className="grow"
+              placeholder={mode === 'qa' ? 'Can I use this with a confidential deck?' : 'Today I want to talk about…'}
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && say()}
+            />
+            <button className="secondary" onClick={say}>Send</button>
+          </div>
+        </div>
+        {micOn && mode === 'qa' && (
+          <button className="link" onClick={stopMic}>Turn the microphone off</button>
+        )}
       </div>
-      <div className="row">
-        <input
-          className="grow"
-          placeholder={mode === 'qa' ? 'Type a question as the audience would ask it' : 'Type a sentence as you would say it'}
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && say()}
-        />
-        <button onClick={say}>Say</button>
-      </div>
-      {heard && <p className="hint">Heard: “{heard}”</p>}
-      {micError && <p className="error">{micError}</p>}
-      <div className="glasses">
-        <iframe title="Glasses view" src={glasses} width={600} height={600} />
-      </div>
-    </div>
+    </main>
+  );
+}
+
+function Developer({status, stats}: {status: Status | null; stats: Stats | null}) {
+  return (
+    <main className="page page--narrow">
+      <h2>Developer</h2>
+      <p className="lede">
+        {status?.model} · {status?.backend} · glasses connected: {status?.hud_clients ?? 0}
+        {status?.prep.stats && status.prep.stats.questions > 0 && (
+          <>
+            <br />
+            Checks: {status.prep.stats.first_try}/{status.prep.stats.questions} passed on the first draft,{' '}
+            {status.prep.stats.retried} fixed after feedback, {status.prep.stats.gaps} rejected, {status.prep.stats.drafts} drafts
+            {status.prep.vision_pages ? `, numbers read from ${status.prep.vision_pages} chart pages` : ''}
+          </>
+        )}
+      </p>
+      <Latency stats={stats} />
+    </main>
   );
 }
 
@@ -474,8 +535,8 @@ function Latency({stats}: {stats: Stats | null}) {
   if (!stats) return null;
   const rate = stats.hit_rate == null ? '–' : `${Math.round(stats.hit_rate * 100)}%`;
   return (
-    <div className="panel">
-      <h2>Latency & hit rate</h2>
+    <div>
+      <h3>Latency & hit rate</h3>
       <p>
         <b>{stats.questions}</b> questions · prepared-card hit rate <b>{rate}</b>
       </p>
@@ -506,12 +567,12 @@ function Latency({stats}: {stats: Stats | null}) {
           })}
         </tbody>
       </table>
-      <p className="hint">Measured from the end of the question (speech complete) to the card text / to the glasses rendering it.</p>
+      <p className="muted">Measured from the end of the question (speech complete) to the card text / to the glasses rendering it.</p>
       <ul className="recent">
         {stats.recent.map(r => (
           <li key={r.id}>
             <span className={`tag tag--${r.path}`}>{r.path}</span> {r.question}{' '}
-            <span className="hint">
+            <span className="muted">
               {r.qtype ? `→ ${r.qtype} (${r.score}) ` : ''}
               {ms(r.first)}
               {r.rendered ? ` / ${ms(r.rendered)}` : ''}
@@ -527,7 +588,7 @@ function Latency({stats}: {stats: Stats | null}) {
           <h3>Prompt cache</h3>
           <ul className="recent">
             {stats.cache.slice(0, 8).map((c, i) => (
-              <li key={i} className="hint">
+              <li key={i} className="muted">
                 {c.task}: {c.cached.toLocaleString()} / {c.prompt.toLocaleString()} tokens cached · {ms(c.ms)}
               </li>
             ))}
