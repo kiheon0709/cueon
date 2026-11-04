@@ -1,298 +1,288 @@
 [
   {
-    "id": "4eb06d0b",
+    "id": "1a7afaaf",
     "question": "Why would anyone pay for this?",
-    "at": 1793814054.812028,
+    "at": 1793821812.497074,
     "path": "live",
-    "score": 0.573,
+    "score": 0.49,
     "speculative": true,
-    "tentative": "a90e3c42",
-    "tentative_ms": 1200.3,
-    "rendered": 1202.5,
-    "first": 6014.6,
-    "checks": [],
-    "card": 6147.3
-  },
-  {
-    "id": "677d9a63",
-    "question": "How do you make money?",
-    "at": 1793814062.182755,
-    "path": "bank",
-    "entry": "165642aa",
-    "qtype": "business-model",
-    "score": 0.718,
-    "runner_up": {
-      "entry": "f3606379",
-      "score": 0.293
-    },
-    "first": 8.4,
-    "card": 8.4,
-    "rendered": 9.4
-  },
-  {
-    "id": "6bc86982",
-    "question": "How big is the market?",
-    "at": 1793814063.418725,
-    "path": "live",
-    "score": 0.287,
-    "speculative": true,
-    "tentative": "9ace12aa",
-    "tentative_ms": 1201.1,
-    "rendered": 1203.3,
-    "first": 6212.5,
-    "checks": [],
-    "card": 6433.5
-  },
-  {
-    "id": "5aa69ed9",
-    "question": "Who are your customers?",
-    "at": 1793814071.024684,
-    "path": "live",
-    "score": 0.478,
-    "speculative": false,
-    "tentative": "e7fbf82a",
-    "tentative_ms": 1200.4,
-    "rendered": 1201.7,
-    "first": 2842.6,
-    "checks": [],
-    "card": 3102.1
-  },
-  {
-    "id": "9fed8340",
-    "question": "Do you have any users yet?",
-    "at": 1793814075.394822,
-    "path": "bank",
-    "entry": "d35d2e44",
-    "qtype": "traction",
-    "score": 0.822,
-    "runner_up": {
-      "entry": "169edfb3",
-      "score": 0.346
-    },
-    "first": 5.4,
-    "card": 5.4,
-    "rendered": 6.6
-  },
-  {
-    "id": "13423ca4",
-    "question": "Why did you start this?",
-    "at": 1793814076.62146,
-    "path": "live",
-    "score": 0.5,
-    "speculative": true,
-    "tentative": "6618c387",
-    "tentative_ms": 1201.3,
-    "rendered": 1201.8,
-    "first": 4604.2,
-    "checks": [],
-    "card": 4780.3
-  },
-  {
-    "id": "587eed29",
-    "question": "How is this different from a teleprompter?",
-    "at": 1793814082.722226,
-    "path": "bank",
-    "entry": "8d7a7b48",
-    "qtype": "competitors",
-    "score": 0.8,
-    "runner_up": {
-      "entry": "81b4256f",
-      "score": 0.633
-    },
-    "first": 9.0,
-    "card": 9.0,
-    "rendered": 10.0
-  },
-  {
-    "id": "7ecda740",
-    "question": "What about Even Realities?",
-    "at": 1793814083.9093819,
-    "path": "bank",
-    "entry": "3eaef5bd",
-    "qtype": "competitors",
-    "score": 0.692,
-    "first": 10.1,
-    "card": 10.1,
-    "rendered": 12.5
-  },
-  {
-    "id": "970c3f60",
-    "question": "What's your latency?",
-    "at": 1793814085.0506508,
-    "path": "live",
-    "score": 0.25,
-    "speculative": false,
-    "tentative": "d059d0b3",
-    "tentative_ms": 1202.2,
-    "rendered": 1203.9,
-    "first": 2902.5,
-    "checks": [
-      "Numbers 1.5, 3.5, 6.5 are not on DATA p.1."
-    ],
-    "card": 3144.5
-  },
-  {
-    "id": "47505541",
-    "question": "How do I know the answers are correct?",
-    "at": 1793814089.559734,
-    "path": "live",
-    "score": 0.35,
-    "speculative": true,
-    "tentative": "3cfe2588",
-    "tentative_ms": 1201.4,
+    "tentative": "7ccbc8a5",
+    "tentative_ms": 1202.6,
     "rendered": 1203.2,
-    "first": 4219.5,
-    "checks": [],
-    "card": 4475.4
+    "first": 6473.7,
+    "checks": [
+      "Numbers 50 are not on PLAN p.3."
+    ],
+    "card": 6473.9
   },
   {
-    "id": "10ca3477",
-    "question": "Why Meta?",
-    "at": 1793814095.125321,
+    "id": "fb34a4b6",
+    "question": "How do you make money?",
+    "at": 1793821820.187385,
+    "path": "bank",
+    "entry": "f247d5bb",
+    "qtype": "business_model",
+    "score": 0.718,
+    "first": 3.9,
+    "card": 3.9,
+    "rendered": 4.5
+  },
+  {
+    "id": "d5ddcb55",
+    "question": "How big is the market?",
+    "at": 1793821821.409607,
     "path": "live",
-    "score": 0.508,
+    "score": 0.443,
+    "speculative": true,
+    "tentative": "48e6c551",
+    "tentative_ms": 1200.5,
+    "rendered": 1201.0,
+    "first": 6550.8,
+    "checks": [
+      "no source"
+    ],
+    "card": 6709.4
+  },
+  {
+    "id": "6922d1fc",
+    "question": "Who are your customers?",
+    "at": 1793821829.290805,
+    "path": "live",
+    "score": 0.404,
     "speculative": false,
-    "tentative": "d059d0b3",
-    "tentative_ms": 1201.1,
-    "rendered": 1201.7,
-    "first": 3411.9,
-    "checks": [
-      "Numbers 600 are not on DECK p.8."
-    ],
-    "card": 3559.1
-  },
-  {
-    "id": "5d94b6b3",
-    "question": "Has this been tested on real glasses?",
-    "at": 1793814100.00236,
-    "path": "live",
-    "score": 0.544,
-    "speculative": true,
-    "tentative": "2b16f05e",
-    "tentative_ms": 1201.4,
-    "rendered": 1201.8,
-    "first": 3451.3,
-    "checks": [
-      "Numbers 0 are not on DECK p.11."
-    ],
-    "card": 3610.3
-  },
-  {
-    "id": "1b1e33d5",
-    "question": "What are your biggest risks?",
-    "at": 1793814104.830423,
-    "path": "live",
-    "score": 0.442,
-    "speculative": true,
-    "tentative": "a728a238",
-    "tentative_ms": 1201.0,
-    "rendered": 1201.6,
-    "first": 4346.8,
+    "tentative": "3ba89e9b",
+    "tentative_ms": 1203.4,
+    "rendered": 1203.8,
+    "first": 3458.1,
     "checks": [],
-    "card": 4480.6
+    "card": 3641.3
   },
   {
-    "id": "ca9bb2cf",
-    "question": "What do you need from us?",
-    "at": 1793814110.586876,
-    "path": "live",
-    "score": 0.433,
-    "speculative": true,
-    "tentative": "a94a682a",
-    "tentative_ms": 1201.1,
-    "rendered": 1203.6,
-    "first": 6580.1,
-    "checks": [],
-    "card": 6731.6
-  },
-  {
-    "id": "807df842",
-    "question": "How much does it cost you per question?",
-    "at": 1793814118.6577752,
+    "id": "6fbcfd3c",
+    "question": "Do you have any users yet?",
+    "at": 1793821834.189997,
     "path": "bank",
-    "entry": "e6927853",
-    "qtype": "costs",
-    "score": 0.65,
+    "entry": "7e88b42e",
+    "qtype": "traction",
+    "score": 0.835,
     "runner_up": {
-      "entry": "a728a238",
-      "score": 0.494
+      "entry": "7d6a5931",
+      "score": 0.45
     },
-    "first": 3.5,
-    "card": 3.5,
-    "rendered": 4.0
-  },
-  {
-    "id": "f7d7cb65",
-    "question": "Is it just for cheating?",
-    "at": 1793814119.874084,
-    "path": "live",
-    "score": 0.616,
-    "speculative": true,
-    "tentative": "169edfb3",
-    "tentative_ms": 1202.0,
-    "rendered": 1202.5,
-    "first": 4743.8,
-    "checks": [],
-    "card": 4867.8
-  },
-  {
-    "id": "8e1d5bac",
-    "question": "What happens if the question isn't in my deck?",
-    "at": 1793814126.127212,
-    "path": "bank",
-    "entry": "f3606379",
-    "qtype": "out-of-scope",
-    "score": 0.658,
-    "runner_up": {
-      "entry": "d4ad1f90",
-      "score": 0.505
-    },
-    "first": 4.0,
-    "card": 4.0,
+    "first": 4.1,
+    "card": 4.1,
     "rendered": 4.7
   },
   {
-    "id": "1d2dfae0",
-    "question": "How much funding have you raised?",
-    "at": 1793814127.3962371,
+    "id": "e4b97965",
+    "question": "Why did you start this?",
+    "at": 1793821835.409211,
     "path": "live",
-    "score": 0.31,
+    "score": 0.602,
     "speculative": true,
-    "tentative": "8dcd077f",
-    "tentative_ms": 1201.3,
+    "tentative": "88d66571",
+    "tentative_ms": 1201.7,
+    "rendered": 1202.2,
+    "first": 3928.0,
+    "checks": [],
+    "card": 4112.9
+  },
+  {
+    "id": "ef1c2ce3",
+    "question": "How is this different from a teleprompter?",
+    "at": 1793821840.8281028,
+    "path": "bank",
+    "entry": "da3d580f",
+    "qtype": "competitors",
+    "score": 1.0,
+    "runner_up": {
+      "entry": "793f07f5",
+      "score": 0.633
+    },
+    "first": 4.4,
+    "card": 4.4,
+    "rendered": 4.9
+  },
+  {
+    "id": "fad295d2",
+    "question": "What about Even Realities?",
+    "at": 1793821842.00581,
+    "path": "live",
+    "score": 0.159,
+    "speculative": false,
+    "first": 4506.1,
+    "rendered": 4506.5,
+    "checks": [],
+    "card": 4686.1
+  },
+  {
+    "id": "66d8e650",
+    "question": "What's your latency?",
+    "at": 1793821847.8219311,
+    "path": "live",
+    "score": 0.088,
+    "speculative": false,
+    "first": 3746.4,
+    "rendered": 3746.8,
+    "checks": [],
+    "card": 3980.1
+  },
+  {
+    "id": "82c6aec0",
+    "question": "How do I know the answers are correct?",
+    "at": 1793821853.150744,
+    "path": "live",
+    "score": 0.35,
+    "speculative": true,
+    "first": 5063.3,
+    "rendered": 5063.7,
+    "checks": [],
+    "card": 5128.0
+  },
+  {
+    "id": "4e2049de",
+    "question": "Why Meta?",
+    "at": 1793821859.366901,
+    "path": "live",
+    "score": 0.431,
+    "speculative": false,
+    "tentative": "e8685bfb",
+    "tentative_ms": 1201.6,
     "rendered": 1202.1,
-    "first": 5751.8,
+    "first": 4144.9,
+    "checks": [],
+    "card": 4347.0
+  },
+  {
+    "id": "6b6b19e3",
+    "question": "Has this been tested on real glasses?",
+    "at": 1793821865.0209641,
+    "path": "live",
+    "score": 0.559,
+    "speculative": true,
+    "tentative": "ae692d96",
+    "tentative_ms": 1203.1,
+    "rendered": 1203.6,
+    "first": 6033.7,
+    "checks": [],
+    "card": 6293.2
+  },
+  {
+    "id": "53d9ef61",
+    "question": "What are your biggest risks?",
+    "at": 1793821872.52982,
+    "path": "bank",
+    "entry": "a6845534",
+    "qtype": "risks",
+    "score": 0.845,
+    "first": 4.4,
+    "card": 4.4,
+    "rendered": 5.0
+  },
+  {
+    "id": "077a9183",
+    "question": "What do you need from us?",
+    "at": 1793821873.795313,
+    "path": "live",
+    "score": 0.433,
+    "speculative": true,
+    "tentative": "0b1ca831",
+    "tentative_ms": 1201.1,
+    "rendered": 1201.5,
+    "first": 7758.7,
     "checks": [
-      "Numbers 0 are not on PLAN p.1."
+      "Numbers 4, 6, 8 are not on DECK p.12."
     ],
-    "card": 5905.0
+    "card": 8004.6
   },
   {
-    "id": "3afbeb82",
+    "id": "dd73862e",
+    "question": "How much does it cost you per question?",
+    "at": 1793821883.150462,
+    "path": "bank",
+    "entry": "bdc687fa",
+    "qtype": "costs",
+    "score": 0.828,
+    "runner_up": {
+      "entry": "dc474c16",
+      "score": 0.73
+    },
+    "first": 4.4,
+    "card": 4.4,
+    "rendered": 4.9
+  },
+  {
+    "id": "d9dc4f94",
+    "question": "Is it just for cheating?",
+    "at": 1793821884.3721862,
+    "path": "live",
+    "score": 0.586,
+    "speculative": true,
+    "tentative": "b8be891e",
+    "tentative_ms": 1200.2,
+    "rendered": 1200.7,
+    "first": 5396.6,
+    "checks": [],
+    "card": 5556.5
+  },
+  {
+    "id": "efd68a1c",
+    "question": "What happens if the question isn't in my deck?",
+    "at": 1793821891.3231082,
+    "path": "bank",
+    "entry": "9c653538",
+    "qtype": "out_of_scope",
+    "score": 0.623,
+    "runner_up": {
+      "entry": "bae95e12",
+      "score": 0.595
+    },
+    "first": 4.5,
+    "card": 4.5,
+    "rendered": 5.2
+  },
+  {
+    "id": "a8312f36",
+    "question": "How much funding have you raised?",
+    "at": 1793821892.5895512,
+    "path": "live",
+    "score": 0.379,
+    "speculative": true,
+    "tentative": "3ba89e9b",
+    "tentative_ms": 1200.7,
+    "rendered": 1201.2,
+    "first": 4595.7,
+    "checks": [],
+    "card": 4596.0
+  },
+  {
+    "id": "4dcd07d4",
     "question": "Who is on your team?",
-    "at": 1793814134.5209,
-    "path": "live",
-    "score": 0.415,
-    "speculative": true,
-    "tentative": "8eda9c2a",
-    "tentative_ms": 1202.5,
-    "rendered": 1205.4,
-    "first": 4173.6,
-    "checks": [],
-    "card": 4311.4
+    "at": 1793821898.402352,
+    "path": "bank",
+    "entry": "3ba89e9b",
+    "qtype": "team_status",
+    "score": 1.0,
+    "runner_up": {
+      "entry": "c2d3fa5f",
+      "score": 0.438
+    },
+    "first": 3.9,
+    "card": 3.9,
+    "rendered": 4.5
   },
   {
-    "id": "805b5369",
+    "id": "f938ebd6",
     "question": "What's next after the hackathon?",
-    "at": 1793814140.061525,
+    "at": 1793821899.623693,
     "path": "live",
-    "score": 0.328,
+    "score": 0.311,
     "speculative": true,
-    "tentative": "a94a682a",
-    "tentative_ms": 1200.1,
-    "rendered": 1200.6,
-    "first": 3759.2,
-    "checks": [],
-    "card": 3927.6
+    "first": 5985.6,
+    "rendered": 5986.0,
+    "checks": [
+      "Numbers 1.5, 6 are not on PLAN p.5."
+    ],
+    "card": 6293.7
   }
 ]

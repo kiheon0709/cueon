@@ -66,13 +66,19 @@ checked. Below it, Spark streams a card in a plain-text line format, and the lea
 lens as soon as it is complete. The card is labelled *Live · from your material* with its page, or
 *Reasoned · not from your material* when the material can't support an answer, in which case it
 suggests how to reason about it with no invented facts. The threshold was raised from 0.42 after
-it showed wrong cards instantly: a wrong answer is worse than a slow one. Two latency tricks:
+it showed wrong cards instantly: a wrong answer is worse than a slow one. Three latency tricks:
 
 - **Speculative start:** a partial transcript that already reads like a whole question (≥ 5
   words, question form, not in the bank) starts the Spark request early. If the final question
   is the same, its answer is reused; otherwise it's cancelled.
+- **Two calls:** Spark's response time varies a lot from call to call (up to 23 s in one test), so a new
+  question is asked twice and the slower call is cancelled once the first one starts.
 - **Fallback:** if Spark has no lead after 1.2 s, the closest prepared card is shown as
   *Closest prepared* and replaced when Spark's card arrives.
+
+Speakers pause between sentences, so the end of a turn isn't always the end of the question. If a turn wasn't a
+question and the next words come within 1 s, the two are joined and answered as one. After a turn that ended in a
+question mark, the mic stops feeding the card, so the presenter's own reply is ignored.
 
 Left/right swipe flips to the runner-up card. A card dims after 10 s so the presenter looks back
 at the audience.

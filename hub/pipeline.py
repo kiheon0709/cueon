@@ -45,6 +45,8 @@ Mode = Literal["qa", "present"]
 FALLBACK_S = 1.2
 DIM_AFTER_S = 10.0  # then the card dims so the presenter looks back at the audience
 SPECULATE_MIN_WORDS = 5
+HEDGED_CALLS = 2
+CONTINUE_S = 1.0  # a next sentence this soon after a statement belongs to the same question
 SAME_QUESTION = 0.9  # final transcript close enough to the speculated one to keep its answer
 _QUESTION_START = re.compile(
     r"^(what|why|how|when|where|who|which|is|are|do|does|did|can|could|would|will|should|have|has|"
@@ -74,7 +76,10 @@ def looks_like_question(text: str) -> bool:
 
 
 class LiveRun:
-    """One streaming Spark answer, collected in the background so it can start early."""
+    """One streaming Spark answer, collected in the background so it can start early.
+
+    Response times vary a lot from call to call, so it asks HEDGED_CALLS times and keeps whichever starts first.
+    """
 
     def __init__(self, model: Model, workspace: Workspace, question: str) -> None:
         self.question = question
@@ -83,24 +88,34 @@ class LiveRun:
         self.done = False
         self.changed = asyncio.Event()
         self.started = time.perf_counter()
-        self.task = asyncio.create_task(self._run(model, workspace))
+        self.winner: asyncio.Task | None = None
+        self.tasks = [asyncio.create_task(self._run(model, workspace)) for _ in range(HEDGED_CALLS)]
 
     async def _run(self, model: Model, workspace: Workspace) -> None:
+        me = asyncio.current_task()
         try:
             async for piece in model.answer_stream(workspace.library, self.question):
+                if self.winner is None:
+                    self.winner, self.error = me, None
+                    for task in self.tasks:
+                        if task is not me:
+                            task.cancel()
                 self.text += piece
                 self.changed.set()
         except asyncio.CancelledError:
             raise
         except Exception as error:  # network or API failure
             log.exception("live answer failed")
-            self.error = str(error)
+            if self.winner in (None, me):
+                self.error = str(error)
         finally:
-            self.done = True
-            self.changed.set()
+            if self.winner is me or all(task is me or task.done() for task in self.tasks):
+                self.done = True
+                self.changed.set()
 
     def cancel(self) -> None:
-        self.task.cancel()
+        for task in self.tasks:
+            task.cancel()
 
 
 class Pipeline:
@@ -117,6 +132,8 @@ class Pipeline:
         self.records: dict[str, dict] = {}
         self._started: dict[str, float] = {}
         self._speculative: LiveRun | None = None
+        self._statement: tuple[str, float] | None = None  # last turn, if it wasn't a question: more may follow
+        self._prefix = ""  # earlier sentences of the question being heard
         self._answer_task: asyncio.Task | None = None
         # Cards the presenter can swipe through for the current question: (qid, cards, index)
         self._choices: tuple[str, list[dict], int] | None = None
@@ -126,6 +143,7 @@ class Pipeline:
     async def set_mode(self, mode: Mode) -> None:
         self.mode = mode
         self.listening = False
+        self._statement, self._prefix = None, ""
         self._cancel_answer()
         self._choices = None
         if mode == "present":
@@ -140,6 +158,7 @@ class Pipeline:
         if self.mode == "present":
             return
         self.listening = not self.listening
+        self._statement, self._prefix = None, ""
         self._cancel_answer()  # a new question (or stop) replaces whatever was still being written
         await self.bus.show("listening" if self.listening else "idle", partial="")
 
@@ -162,8 +181,11 @@ class Pipeline:
     async def on_event(self, event: dict) -> None:
         kind = event.get("type")
         if kind == "transcript" and not event.get("final"):
+            partial = event.get("transcript", "")
+            if self.mode == "qa" and partial:
+                self._maybe_continue()
             if self.mode == "qa" and self.listening:
-                partial = event.get("transcript", "")
+                partial = f"{self._prefix} {partial}".strip()
                 await self.bus.show("listening", partial=partial)
                 self._maybe_speculate(partial)
         elif kind == "speechComplete":
@@ -171,11 +193,25 @@ class Pipeline:
             if self.mode == "present":
                 await self.hear(text)
             elif self.listening and text:
+                text = f"{self._prefix} {text}".strip()
+                self._prefix = ""
                 self.listening = False
+                self._statement = None if text.endswith("?") else (text, time.monotonic())
                 self._cancel_answer(keep_speculation=True)
                 # In the background, so the transcript relay keeps flowing and a tap can cancel it.
                 self._answer_task = asyncio.create_task(self.answer(text))
                 self._answer_task.add_done_callback(self._answer_done)
+
+    def _maybe_continue(self) -> None:
+        """Speakers pause between sentences: "You have no users. How do you get them?" is one question."""
+        if self.listening or self._statement is None:
+            return
+        text, at = self._statement
+        self._statement = None
+        if time.monotonic() - at <= CONTINUE_S:
+            self._prefix = text
+            self.listening = True
+            self._cancel_answer()
 
     async def run_stream(self, events: AsyncIterator[dict]) -> None:
         async for event in events:
@@ -306,7 +342,7 @@ class Pipeline:
                 if shown is None:
                     record["first"] = ms()
                 shown = card
-                await self.bus.show("card", id=qid, path="live", **card.model_dump())
+                await self.bus.show("card", id=qid, path="live", writing=True, **card.model_dump())
             if run.done:
                 break
             timeout = None

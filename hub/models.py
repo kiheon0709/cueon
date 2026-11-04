@@ -125,11 +125,13 @@ LIVE_TASK = """An investor or judge just asked the presenter: "{question}"
 Write the cue card to glance at before answering, in exactly this plain text, nothing else:
 LEAD: <what to say first, spoken words, at most 12 words, naming the specific thing>
 - <strongest evidence from the material, with a number or name, at most 10 words>
-- <the other part of the question, or the answer to the objection, at most 10 words>
+- <the next part of the question, or the answer to the objection, at most 10 words>
+- <any part still unanswered, or the next step, at most 10 words>
 SOURCE: <alias> p.<n>
-Reason from the material; label hypotheses. Never restate the topic or use a slogan.
+Answer every part of the question, in the order asked. Say what is true today first; anything planned
+or not yet run must say so. Reason from the material; label hypotheses. Never restate the topic or use a slogan.
 If the material can't support an answer, leave out SOURCE and suggest how a sharp founder would reason
-about it, with no invented facts or numbers."""
+about it, framed as "If ..., we would ...". Never state a plan, decision, or number the material doesn't state."""
 
 NOTES_TASK = """For every page of the main document ({alias}), write the notes the presenter glances at while showing it:
 - page: the page number
@@ -141,7 +143,9 @@ NOTES_TASK = """For every page of the main document ({alias}), write the notes t
 - support_source: where that fact is, as "<alias> p.<n>", or "" """
 
 KEYWORDS_TASK = """List up to 40 terms a speech recognizer might mishear in questions about this material:
-product and company names, people, acronyms, jargon, unusual words. Most important first."""
+product and company names, acronyms, jargon, unusual words. Only terms someone would really say in a
+question: no team names, author names or citations, because the recognizer starts hearing them everywhere.
+Most important first."""
 
 CHART_TASK = """This is one page of a presentation. List every number shown in its charts, graphs, and tables
 exactly as printed (for example "61%", "1.4", "$2.3M"). Ignore page numbers. Return an empty list if there are none."""
@@ -267,7 +271,7 @@ class SparkModel:
     ) -> None:
         from openai import AsyncOpenAI  # the SDK does not read MODEL_API_KEY itself
 
-        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=60, max_retries=2, http_client=http_client)
+        self.client = AsyncOpenAI(base_url=base_url, api_key=api_key, timeout=180, max_retries=2, http_client=http_client)
         self.model = model
         self.cache_stats: list[dict] = []  # per call: prompt and cached tokens, for the console
         self._plain_json = False  # set if the server turns out not to support json_schema

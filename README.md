@@ -15,8 +15,9 @@ Built for the Meta Global AI Developer Hackathon 2026 (Indie Developer track, Bu
 
 A working prototype, run end to end with the real Muse Spark and Muse Voice Transcribe.
 
-- The glasses view passes Meta's web app checker and runs in the Ray-Ban Display simulator. It has
-  **not been tested on a real device**: the glasses aren't sold in Korea, where this was built.
+- The glasses view passed Meta's web app checker on Nov 4, before the last small label changes, and
+  runs in the Ray-Ban Display simulator. It has **not been tested on a real device**: the glasses
+  aren't sold in Korea, where this was built.
 - Local mode on Muse Glimmer is written and tested against a fake server, but **hasn't been run on
   real weights yet**.
 - The pilot experiment kit in `eval/experiment/` hasn't been run.
@@ -152,8 +153,9 @@ in Q&A or corrects the page while presenting; swipe down shows all points of a c
 Without Ray-Ban Display, `?device=xreal` draws the same view as a small panel low and to the right
 of a full-screen display glasses (black is transparent there too).
 
-The glasses view passes Meta's webapp checker (`meta-wearables-webapp` `check-webapp.mjs`):
-UI Toolkit structure, focus, overflow and console checks in a real browser.
+The glasses view passed Meta's webapp checker (`meta-wearables-webapp` `check-webapp.mjs`) on Nov 4:
+UI Toolkit structure, focus, overflow and console checks in a real browser. The small label changes
+made after that haven't been rechecked with it.
 
 ### Use
 

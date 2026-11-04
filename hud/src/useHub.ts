@@ -20,6 +20,7 @@ export interface HudMessage {
   live?: boolean;
   /** Nearest prepared card shown while Spark is still writing. */
   tentative?: boolean;
+  writing?: boolean;
   /** Which of several candidate cards this is (swipe left/right). */
   choice?: number;
   choices?: number;

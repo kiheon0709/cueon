@@ -56,7 +56,9 @@ export default function App() {
 
   const status = message.tentative
     ? 'CLOSEST PREPARED'
-    : message.live
+    : message.writing
+      ? 'LIVE · WRITING'
+      : message.live
       ? message.source
         ? 'LIVE · FROM YOUR MATERIAL'
         : 'REASONED · NOT FROM YOUR MATERIAL'

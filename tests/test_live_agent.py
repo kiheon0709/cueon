@@ -4,7 +4,7 @@ import asyncio
 
 from hub.bank import Bank
 from hub.cards import Card
-from hub.pipeline import Pipeline
+from hub.pipeline import HEDGED_CALLS, Pipeline
 from hub.sources import Document, Library, Page
 from hub.workspace import Workspace
 
@@ -67,7 +67,7 @@ def test_speculative_start_is_reused_for_the_same_question():
 
     asyncio.run(run())
     record = next(iter(pipeline.records.values()))
-    assert model.calls == [question] and record["speculative"]
+    assert model.calls == [question] * HEDGED_CALLS and record["speculative"]
 
 
 def test_speculation_is_cancelled_when_the_question_changes():
@@ -82,7 +82,7 @@ def test_speculation_is_cancelled_when_the_question_changes():
         await pipeline.wait_idle()
 
     asyncio.run(run())
-    assert len(model.calls) == 2
+    assert len(model.calls) == 2 * HEDGED_CALLS
     assert not next(iter(pipeline.records.values()))["speculative"]
 
 
@@ -194,3 +194,51 @@ def test_failed_live_answer_leaves_no_pending_render():
     pipeline = Pipeline(Bus(), FailingModel(), workspace())
     asyncio.run(pipeline.answer("does it stay fast on a weak conference wifi network"))
     assert pipeline._started == {}
+
+
+def test_live_card_comes_from_the_call_that_starts_first():
+    class Mixed(SlowModel):
+        def answer_stream(self, library, question):
+            self.calls.append(question)
+            slow = len(self.calls) == 1
+
+            async def stream():
+                await asyncio.sleep(5 if slow else 0.01)
+                yield "LEAD: From the faster call\n- A point\nSOURCE: DECK p.1\n"
+
+            return stream()
+
+    pipeline = Pipeline(Bus(), Mixed(delay=0), workspace())
+    pipeline.listening = True
+
+    async def run():
+        await pipeline.on_event({"type": "speechComplete", "transcript": "Why would I pick you over a rival?"})
+        await asyncio.wait_for(pipeline.wait_idle(), 2)
+
+    asyncio.run(run())
+    assert next(iter(pipeline.records.values()))["first"] < 1000
+
+
+def _heard(*turns):
+    model = SlowModel(delay=0)
+    pipeline = Pipeline(Bus(), model, workspace())
+    pipeline.listening = True
+
+    async def run():
+        for text, pause in turns:
+            await pipeline.on_event({"type": "transcript", "transcript": text, "final": False})
+            await pipeline.on_event({"type": "speechComplete", "transcript": text})
+            await asyncio.sleep(pause)
+        await pipeline.wait_idle()
+
+    asyncio.run(run())
+    return [r["question"] for r in pipeline.records.values()]
+
+
+def test_next_sentence_after_a_statement_joins_the_question():
+    asked = _heard(("You have no revenue yet.", 0), ("How do you get your first customers?", 0))
+    assert asked[-1] == "You have no revenue yet. How do you get your first customers?"
+
+
+def test_speech_after_a_finished_question_is_ignored():
+    assert _heard(("How do you get your first customers?", 0), ("Good question.", 0)) == ["How do you get your first customers?"]

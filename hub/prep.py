@@ -44,24 +44,22 @@ async def write_checked(
     question: str, library: Library, write_card: WriteCard, judge: Judge | None = None, review: Review | None = None
 ) -> tuple[Card | None, list[str], int]:
     """Write one card and keep revising it until it passes. Returns (card, problems, attempts)."""
-    saved: list[Card] = []
+    passed: Card | None = None  # a weak card is improved while tries remain, but it's still true: never a gap
     feedback: list[str] = []
     for attempt in range(1, MAX_ATTEMPTS + 1):
         card = await write_card(question, feedback)
         if card is None:
-            return None, ["The material has no answer for this question."], attempt
-        feedback = await save_card(card, library, saved, judge)
+            return passed, [] if passed else ["The material has no answer for this question."], attempt
+        feedback = await save_card(card, library, [], judge)
         if not feedback:
-            # A weak card is improved while tries remain, but never becomes a gap: it's still true.
+            passed = card
             try:
-                weak = await review(question, card) if review and attempt < MAX_ATTEMPTS else []
+                feedback = await review(question, card) if review and attempt < MAX_ATTEMPTS else []
             except Exception:  # a review that fails must not cost a card that passed its checks
-                weak = []
-            if not weak:
-                return saved[0], [], attempt
-            saved.clear()
-            feedback = weak
-    return None, feedback, MAX_ATTEMPTS
+                feedback = []
+            if not feedback:
+                return card, [], attempt
+    return passed, [] if passed else feedback, MAX_ATTEMPTS
 
 
 async def prepare_cards(

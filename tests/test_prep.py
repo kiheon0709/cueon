@@ -167,3 +167,21 @@ def test_weak_card_is_improved_but_never_becomes_a_gap(library):
     card, problems, used = asyncio.run(write_checked("q", library, write, None, review))
     assert card is good and problems == [] and used == 3
     assert drafts[1] == ["Weak answer: add evidence"]
+
+
+def test_failed_revision_keeps_the_card_that_passed(library):
+    source = library.documents[0].alias + " p.1"
+    passed = Card(question="q", lead="Short answer", points=[], source=source)
+    revised = Card(question="q", lead="Longer answer", points=[], source=source)
+
+    async def write(question, feedback):
+        return revised if feedback else passed
+
+    async def judge(card):
+        return [] if card is passed else ["Not supported"]
+
+    async def review(question, card):
+        return ["Weak answer: add evidence"]
+
+    card, problems, used = asyncio.run(write_checked("q", library, write, judge, review))
+    assert card is passed and problems == [] and used == 3
