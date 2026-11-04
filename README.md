@@ -175,3 +175,7 @@ uv run pytest
 cd hud && npm run typecheck
 node hud/e2e/smoke.mjs http://127.0.0.1:8000   # against a running hub (CUEON_FAKE=1 is fine)
 ```
+
+## License
+
+MIT. See `LICENSE`.

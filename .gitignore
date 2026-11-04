@@ -12,6 +12,7 @@ dist/
 
 # os
 .DS_Store
-data/
+/data/
+/data-*/
 .env
 .wearables-test/
