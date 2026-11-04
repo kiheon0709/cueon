@@ -7,6 +7,7 @@ console or POST /ask, and cards come from the material by text matching.
 import asyncio
 import json
 import logging
+import contextlib
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -364,18 +365,29 @@ async def audio(ws: WebSocket) -> None:
         while (chunk := await queue.get()) is not None:
             yield chunk
 
+    mic_open = True
+
     async def relay() -> None:
-        try:
-            async for event in transcribe(chunks(), key, keywords=workspace.keywords()):
-                if event.get("type") in ("transcript", "speechComplete"):
-                    await ws.send_text(json.dumps(event))
-                await pipeline.on_event(event)
-        except Exception as error:
-            log.exception("transcription stopped")
+        """Keep a transcription session open for as long as the mic is: if the service closes it
+        or it fails mid-talk, open a new one (three failures in a row and we give up)."""
+        failures = 0
+        while mic_open:
             try:
-                await ws.send_text(json.dumps({"type": "error", "message": str(error)}))
-            except Exception:
-                pass
+                async for event in transcribe(chunks(), key, keywords=workspace.keywords()):
+                    failures = 0
+                    if event.get("type") in ("transcript", "speechComplete"):
+                        await ws.send_text(json.dumps(event))
+                    await pipeline.on_event(event)
+                if mic_open:
+                    log.info("transcription session ended while the mic is on; reconnecting")
+            except Exception as error:
+                failures += 1
+                log.exception("transcription failed (%d in a row)", failures)
+                if failures >= 3 or not mic_open:
+                    with contextlib.suppress(Exception):
+                        await ws.send_text(json.dumps({"type": "error", "message": str(error)}))
+                    return
+                await asyncio.sleep(failures)
 
     task = asyncio.create_task(relay())
     try:
@@ -387,6 +399,7 @@ async def audio(ws: WebSocket) -> None:
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
+        mic_open = False
         while not queue.empty():  # make room for the end marker even if the relay already stopped
             queue.get_nowait()
         queue.put_nowait(None)
