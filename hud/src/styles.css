@@ -90,6 +90,12 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.clamp3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 [data-device='xreal'] body {
   display: flex;

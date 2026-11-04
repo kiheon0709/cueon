@@ -55,7 +55,7 @@ await shot('card');
 
 await post('/api/ask', {text: 'Where did you buy that shirt?'});
 await glasses.waitForTimeout(800);
-expect(/LIVE|Ask to repeat/.test(await text()), 'unknown question gets a live card or a repeat prompt');
+expect(/LIVE|REASONED|Ask to repeat/.test(await text()), 'unknown question gets a live card or a repeat prompt');
 
 await post('/api/talk', {minutes: 3});
 await post('/api/mode', {mode: 'present'});

@@ -2,6 +2,8 @@ import {useEffect, useState} from 'react';
 import {Button, ButtonRail, App as WearablesApp, TextColor, TextStyle, TextView} from '@wearables-ui-toolkit/mrbd';
 import {type CuePoint, useHub} from './useHub';
 
+const MAX_PARTIAL = 190;
+
 function useNow(active: boolean): number {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -55,7 +57,9 @@ export default function App() {
   const status = message.tentative
     ? 'CLOSEST PREPARED'
     : message.live
-      ? 'LIVE · UNCHECKED'
+      ? message.source
+        ? 'LIVE · FROM YOUR MATERIAL'
+        : 'REASONED · NOT FROM YOUR MATERIAL'
       : message.choices && message.choices > 1
         ? `${message.choice ?? 1} OF ${message.choices}`
         : null;
@@ -84,28 +88,29 @@ export default function App() {
                 LISTENING
               </TextView>
             </div>
-            <TextView textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY} className="clamp2">
-              {message.partial}
+            {/* Keeps the end of a long question in view: that's the part still being said. */}
+            <TextView textStyle={TextStyle.BODY2} textColor={TextColor.SECONDARY}>
+              {(message.partial ?? '').length > MAX_PARTIAL ? `…${(message.partial ?? '').slice(-MAX_PARTIAL)}` : message.partial}
             </TextView>
           </div>
         )}
 
         {message.state === 'thinking' && (
           <div className="stack">
-            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="clamp2">
-              {message.question}
+            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="clamp3">
+              Q. {message.question}
             </TextView>
-            <TextView textStyle={TextStyle.BODY2}>Good question. Short answer is…</TextView>
+            <TextView textStyle={TextStyle.BODY2}>A. Good question. Short answer is…</TextView>
           </div>
         )}
 
         {message.state === 'card' && (
           <div className="stack">
-            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="clamp2">
-              {message.question}
+            <TextView textStyle={TextStyle.META1} textColor={TextColor.SECONDARY} className="clamp3">
+              Q. {message.question}
             </TextView>
             <div className="answer">
-              <TextView textStyle={TextStyle.BODY2_EMPHASIZED}>{message.lead}</TextView>
+              <TextView textStyle={TextStyle.BODY2_EMPHASIZED}>A. {message.lead}</TextView>
               {(detail ? answerPoints : answerPoints?.slice(0, 2))?.map(point => (
                 <TextView key={point} textStyle={TextStyle.BODY2}>
                   {point}
