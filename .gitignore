@@ -16,3 +16,6 @@ dist/
 /data-*/
 .env
 .wearables-test/
+
+# local demo material, not part of the product
+/samples/ir/

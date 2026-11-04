@@ -16,7 +16,7 @@ from pathlib import Path
 from hub.bank import Bank
 from hub.workspace import Workspace
 
-THRESHOLDS = [0.25, 0.3, 0.35, 0.4, 0.42, 0.45, 0.5, 0.55, 0.6]
+THRESHOLDS = [0.3, 0.4, 0.42, 0.5, 0.55, 0.6, 0.62, 0.65, 0.7]
 
 
 def page_of(source: str | None) -> str:

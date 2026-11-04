@@ -46,7 +46,9 @@ is no vector search: the model sees all of the material on every call.
      number on the card is on that page;
    - then an LLM judge checks each claim against the cited page.
    A rejected card goes back to the writer with the problems, up to 3 times. What still fails
-   becomes a **gap** the presenter resolves in the console.
+   becomes a **gap** the presenter resolves in the console. A passing card then goes to a reviewer:
+   does it answer every part of the question, with evidence and not just a bare fact? Weak cards get
+   another draft while tries remain, but a true card never becomes a gap for being weak.
 4. **Presentation notes:** key points, a bridge line, a short version, and one supporting fact
    from the evidence documents per page; supporting facts and points pass the same number check.
 5. **Recognition terms:** Spark picks up to 40 names and terms for speech-recognition biasing.
@@ -57,11 +59,14 @@ phrasings it should match, and its follow-ups linked to it.
 ## Live loop (`hub/pipeline.py`)
 
 **Q&A.** The presenter pinches to listen (push-to-listen). When Voice Transcribe reports the turn
-complete, the question is matched against every phrasing in the bank with a local
-character-trigram/word cosine similarity (`hub/similarity.py`), with a bonus for follow-ups of
-the card just shown. Above the threshold the prepared card is shown exactly as it was checked.
-Below it, Spark streams a card in a plain-text line format; the lead line goes to the lens as soon
-as it is complete, and the card is marked *Live · unchecked*. Two latency tricks:
+complete, the question, and each sentence of a long one, is matched against every phrasing in the
+bank with a local character-trigram/word cosine similarity (`hub/similarity.py`), with a bonus for
+follow-ups of the card just shown. At 0.62 or above the prepared card is shown exactly as it was
+checked. Below it, Spark streams a card in a plain-text line format, and the lead line goes to the
+lens as soon as it is complete. The card is labelled *Live · from your material* with its page, or
+*Reasoned · not from your material* when the material can't support an answer, in which case it
+suggests how to reason about it with no invented facts. The threshold was raised from 0.42 after
+it showed wrong cards instantly: a wrong answer is worse than a slow one. Two latency tricks:
 
 - **Speculative start:** a partial transcript that already reads like a whole question (≥ 5
   words, question form, not in the bank) starts the Spark request early. If the final question
@@ -89,7 +94,11 @@ path and the prepared-card hit rate; `eval/` has the benchmarks.
 
 `MODEL_BACKEND=glimmer` points the same prompts at Muse Glimmer on any OpenAI-compatible local
 runtime, so the material never leaves the laptop. Only question audio goes to Voice Transcribe.
+This is written and tested against a fake server, but hasn't been run on real weights.
 
 ## Privacy
 
 Push-to-listen in Q&A; audio is streamed, never stored; no speaker identification; no camera.
+With Muse Spark, the material and the questions go to the Meta Model API. While free credits are in
+use, Meta's console says content may be used for product improvement, so confidential decks should
+wait for local mode.

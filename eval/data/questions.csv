@@ -1,0 +1,41 @@
+question,expected
+What exactly is this product?,DECK p.1
+Which Meta models does it run on?,DECK p.1
+Why does anyone need help with Q&A?,DECK p.2
+What goes wrong for presenters when they get a question?,DECK p.2
+How long a silence starts to look bad?,DECK p.2
+Who is your target user?,DECK p.3
+Is this only for startup founders?,DECK p.3
+How many researchers avoid English conferences?,DECK p.3
+Can you walk me through how it works?,DECK p.4
+What do I have to do before my talk?,DECK p.4
+What kind of files can I give it?,DECK p.4
+How do I trigger it during Q&A?,DECK p.4
+How do you stop it from making things up?,DECK p.5
+What checks does a card go through?,DECK p.5
+What is the judge model doing?,DECK p.5
+What happens to a card that gets rejected?,DECK p.5
+How many times will it try to rewrite a card?,DECK p.5
+How do you make it so fast?,DECK p.6
+Does a prepared card need to call the model?,DECK p.6
+What happens with a question you didn't predict?,DECK p.6
+What is your latency target?,DECK p.6
+What's the p95 you are aiming for?,DECK p.6
+Does it do anything while I'm presenting?,DECK p.7
+How does it know which slide I'm on?,DECK p.7
+What if I forget to mention a key point?,DECK p.7
+What happens when I'm running out of time?,DECK p.7
+Is the microphone always on?,DECK p.8
+Do you keep recordings of the audience?,DECK p.8
+Do you identify who is speaking?,DECK p.8
+Can I keep my slides on my own machine?,DECK p.8
+What runs in local mode?,DECK p.8
+How is this better than a teleprompter?,DECK p.9
+Why not just use live captions?,DECK p.9
+What makes you different from other tools?,DECK p.9
+How much does it cost per month?,none
+Who are your investors?,none
+How many users do you have today?,none
+What's the weather like tomorrow?,none
+Where did you buy that shirt?,none
+Does it work with Apple Vision Pro?,none

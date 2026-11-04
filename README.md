@@ -4,11 +4,22 @@ Live Q&A cue cards for presenters, shown on Meta Ray-Ban Display.
 
 Cueon reads everything you bring to a talk (slides, business plan, papers, data) before you go on
 stage, predicts the questions you'll get, and writes a short, checked answer card for each. During
-Q&A it listens when you pinch, finds the right card, and puts it on the glasses lens. If nothing
-fits, Muse Spark writes one on the spot from your material, marked as unchecked. While you present,
-it follows along through your slides and tells you when you skipped a point.
+Q&A it listens when you ask it to, finds the right card, and puts it on the glasses lens. If nothing
+fits, Muse Spark writes one on the spot from your material, labelled as live. If your material can't
+support an answer, it suggests how to reason about it, labelled as not from your material, with no
+invented facts. While you present, it follows your slides and tells you when you skipped a point.
 
 Built for the Meta Global AI Developer Hackathon 2026 (Indie Developer track, Build for Your World).
+
+## Status
+
+A working prototype, run end to end with the real Muse Spark and Muse Voice Transcribe.
+
+- The glasses view passes Meta's web app checker and runs in the Ray-Ban Display simulator. It has
+  **not been tested on a real device**: the glasses aren't sold in Korea, where this was built.
+- Local mode on Muse Glimmer is written and tested against a fake server, but **hasn't been run on
+  real weights yet**.
+- The pilot experiment kit in `eval/experiment/` hasn't been run.
 
 ## New work
 
@@ -27,7 +38,7 @@ was reused. Third-party libraries are listed in `pyproject.toml` and `hud/packag
  │        │    + follow-ups                    │    │   ├─ hit  → prepared card, unchanged         │
  │        ▼                                    │    │   └─ miss → Spark streams a card from the    │
  │ write card → save_card checks → LLM judge   │    │            cached prefix, lead line first,   │
- │   (retry ×3 with feedback, else a "gap")    │    │            marked "Live · unchecked"         │
+ │   (retry ×3 with feedback, else a "gap")    │    │            labelled Live or Reasoned         │
  │        ▼                                    │    │ Present: sentence ↔ page notes similarity    │
  │ card bank + page notes  ─────────────────────────▶  → current page, ✓ points, "Skipped" cue    │
  └─────────────────────────────────────────────┘    └──────────────┬──────────────────────────────┘
@@ -40,8 +51,9 @@ was reused. Third-party libraries are listed in `pyproject.toml` and `hud/packag
   is served from cache after the first call.
 - **Checks the agent can't skip.** `save_card` rejects a card whose citation isn't a real page,
   whose numbers aren't on the cited page, or that is too long to read at a glance; then an LLM judge
-  checks every claim against the cited page. Problems go back to the writer; after three tries the
-  question becomes a gap the presenter resolves in the console.
+  checks every claim against the cited page. A reviewer then sends weak answers back for another
+  draft. Unsupported cards that still fail after three tries become gaps the presenter resolves in
+  the console.
 - **Citations** read `ALIAS p.N` (for example `BP p.12`), across slides, documents and CSV data.
 - **Fast when it matters.** A Spark request starts from the partial transcript when it already
   reads like a whole question, and if Spark has no lead line after 1.2 s the closest prepared card
@@ -53,7 +65,8 @@ was reused. Third-party libraries are listed in `pyproject.toml` and `hud/packag
   from the end of the question to the first card text and to the glasses rendering it. The console
   shows p50/p95 per path, the prepared-card hit rate and prompt-cache hits (`data/questions.jsonl`).
 
-More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+More detail in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the research behind the design in
+[docs/RESEARCH.md](docs/RESEARCH.md), and measured numbers in [docs/results.md](docs/results.md).
 
 ## Layout
 
@@ -73,8 +86,8 @@ hud/            web apps (Vite + React)
   console/        presenter console (console.html): material, prep, cards, gaps, rehearsal, latency
   e2e/            browser smoke test
 eval/           latency and matching benchmarks, pilot experiment kit
-samples/        demo material and a scripted demo run
-docs/           architecture, demo script, submission drafts
+samples/        sample material and a scripted demo run
+docs/           architecture, research behind the design, measured results
 tests/          pytest
 ```
 
@@ -90,7 +103,10 @@ uv run uvicorn hub.main:app --port 8000
 ```
 
 - Console: http://127.0.0.1:8000/console
-- Glasses view: http://127.0.0.1:8000/glasses (or the 600×600 preview inside the console)
+- Glasses view: http://127.0.0.1:8000/glasses (the console's Present step shows the same 600×600 view)
+
+**Try it in a minute, no key needed:** run with `CUEON_FAKE=1`, upload `samples/cueon-pitch.pdf` in
+**Material**, press **Prepare cards**, then type a question in **Present**.
 
 Without `MODEL_API_KEY` (or with `CUEON_FAKE=1`) the hub runs on stand-ins: cards come from your
 material by text matching and you type questions instead of speaking them. Everything else works
@@ -115,8 +131,8 @@ LOCAL_BASE_URL=http://localhost:8080/v1   # Ollama: :11434/v1, vLLM: :8000/v1
 LOCAL_MODEL=muse-glimmer-30b              # what GET /v1/models reports
 ```
 
-The prompts and checks are the same as with Spark. The runtime reuses the shared material prefix
-from its KV cache, and Cueon leans more on prepared cards because a local 30B model is slower.
+The prompts and checks are the same as with Spark, and the runtime can reuse the shared material
+prefix. This mode is written and tested against a fake server, and hasn't been run on real weights.
 
 ### On the glasses
 
@@ -141,12 +157,12 @@ UI Toolkit structure, focus, overflow and console checks in a real browser.
 
 ### Use
 
-1. Upload your material in the console. Give each file a short alias (`DECK`, `BP`, `STUDY`) and a
-   role: **main** is what you present, **evidence** is what backs it up.
-2. Press **Prepare cards**. Review the bank, edit anything, and resolve the gaps.
-3. Rehearse: type or speak questions and watch the glasses preview and the latency table.
-4. On stage: **Presenting** while you talk, then pinch **Start Q&A**; pinch **Listen** before each
-   question.
+1. **Material:** drop your files. The file name becomes its alias, so `deck.pdf` is cited as
+   `DECK p.3`. Mark what you present and what's backup.
+2. **Prepare cards**, then **Cards:** review them, edit anything, and resolve the gaps.
+3. **Present:** rehearse by speaking or typing. The **Developer** view has latency and cache numbers.
+4. On stage: **Follow my talk** while you present, then **During Q&A**, and tap **Listen to a
+   question** or pinch for each question.
 
 ## Evaluation
 
@@ -159,7 +175,8 @@ uv run python -m eval.experiment.analyze results.csv       # pilot summary + cha
 ```
 
 `eval/data/questions.csv` holds 40 spoken-style questions about the sample deck, labelled with the
-page that answers them (or `none`). The pilot protocol and rubric are in `eval/experiment/`.
+page that answers them (or `none`). The results are in [docs/results.md](docs/results.md). The pilot
+protocol and rubric are in `eval/experiment/`.
 
 ## Demo material
 
