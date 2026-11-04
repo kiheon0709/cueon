@@ -43,6 +43,9 @@ was reused. Third-party libraries are listed in `pyproject.toml` and `hud/packag
   checks every claim against the cited page. Problems go back to the writer; after three tries the
   question becomes a gap the presenter resolves in the console.
 - **Citations** read `ALIAS p.N` (for example `BP p.12`), across slides, documents and CSV data.
+- **Fast when it matters.** A Spark request starts from the partial transcript when it already
+  reads like a whole question, and if Spark has no lead line after 1.2 s the closest prepared card
+  is shown until it does.
 - **Two modes, one app.** Presentation mode only uses the model before the talk (key points, a
   bridge line and a short version per page). Q&A mode uses the prepared bank first and Spark only
   when the bank has nothing close.
@@ -66,8 +69,12 @@ hub/            FastAPI hub
   pipeline.py     live loop, latency records
   main.py         console API, /hud and /audio WebSockets
 hud/            web apps (Vite + React)
-  index.html      glasses view, built with the Meta Wearables UI Toolkit (MRBD)
-  console.html    presenter console: material, prep, card editing, gaps, rehearsal, latency
+  src/            glasses view (index.html), built with the Meta Wearables UI Toolkit (MRBD)
+  console/        presenter console (console.html): material, prep, cards, gaps, rehearsal, latency
+  e2e/            browser smoke test
+eval/           latency and matching benchmarks, pilot experiment kit
+samples/        demo material and a scripted demo run
+docs/           architecture, demo script, submission drafts
 tests/          pytest
 ```
 
@@ -113,11 +120,18 @@ from its KV cache, and Cueon leans more on prepared cards because a local 30B mo
 
 ### On the glasses
 
-Serve the glasses view where the Ray-Ban Display can reach it and point it at the hub with the
-`hub` query parameter, for example `https://<host>/?hub=wss://<hub-host>/hud`. Neural Band input
-arrives as keys: swipe up toggles listening, swipe
-left/right flips to the runner-up card (Q&A) or corrects the page (presentation), swipe down shows
-all points, and pinch presses the on-lens button (Listen / Stop, or Start Q&A while presenting).
+The glasses need HTTPS. Expose the hub with a tunnel and open the glasses view through it, or host
+the built `hud/dist` anywhere (e.g. Vercel) and pass the hub's address:
+
+```bash
+cloudflared tunnel --url http://localhost:8000     # → https://<name>.trycloudflare.com
+# glasses:  https://<name>.trycloudflare.com/glasses
+# or:       https://<your-hud-host>/?hub=wss://<name>.trycloudflare.com/hud
+```
+
+Neural Band input arrives as keys. Pinch presses the on-lens button (Listen / Stop, or Start Q&A
+while presenting); swipe up also toggles listening; swipe left/right flips to the runner-up card
+in Q&A or corrects the page while presenting; swipe down shows all points of a card.
 
 Without Ray-Ban Display, `?device=xreal` draws the same view as a small panel low and to the right
 of a full-screen display glasses (black is transparent there too).
@@ -131,7 +145,8 @@ UI Toolkit structure, focus, overflow and console checks in a real browser.
    role: **main** is what you present, **evidence** is what backs it up.
 2. Press **Prepare cards**. Review the bank, edit anything, and resolve the gaps.
 3. Rehearse: type or speak questions and watch the glasses preview and the latency table.
-4. On stage: **Presenting** while you talk, **Q&A** afterwards; pinch-up to listen to a question.
+4. On stage: **Presenting** while you talk, then pinch **Start Q&A**; pinch **Listen** before each
+   question.
 
 ## Evaluation
 
