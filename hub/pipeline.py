@@ -62,8 +62,8 @@ def percentile(values: list[float], q: float) -> float | None:
 
 
 # Korean questions end in a question form rather than starting with a question word.
-_KOREAN_QUESTION = re.compile(r"(까|니|나요|가요|죠|어요|아요|에요|예요|래요|을까요|ㄹ까요|는지)\s*$")
-_KOREAN_WORDS = re.compile(r"(무엇|뭐|왜|어떻게|어떤|언제|어디|누가|몇|얼마)")
+_KOREAN_QUESTION = re.compile(r"(까|니|나요|가요|죠|어요|아요|에요|예요|래요|는지)\s*$")
+_KOREAN_WORDS = re.compile(r"(무엇|뭐|왜|어떻게|어떤|언제(?!나)|어디|누가|몇|얼마)")
 
 
 def looks_like_question(text: str) -> bool:
@@ -175,6 +175,7 @@ class Pipeline:
                 self._cancel_answer(keep_speculation=True)
                 # In the background, so the transcript relay keeps flowing and a tap can cancel it.
                 self._answer_task = asyncio.create_task(self.answer(text))
+                self._answer_task.add_done_callback(self._answer_done)
 
     async def run_stream(self, events: AsyncIterator[dict]) -> None:
         async for event in events:
@@ -187,6 +188,14 @@ class Pipeline:
         if task and not task.done():
             with contextlib.suppress(asyncio.CancelledError):
                 await task
+
+    def _answer_done(self, task: asyncio.Task) -> None:
+        """An answer that crashed must not leave 'thinking' on the lens or vanish from the logs."""
+        if task.cancelled() or task.exception() is None:
+            return
+        log.error("answer failed", exc_info=task.exception())
+        if self.bus.last.get("state") == "thinking":
+            asyncio.get_running_loop().create_task(self.bus.show("repeat", partial=""))
 
     def _cancel_answer(self, keep_speculation: bool = False) -> None:
         if not keep_speculation:
@@ -256,6 +265,7 @@ class Pipeline:
         if len(re.findall(r"\w+", question)) < 2:
             self._drop_speculation()
             record.update(path="none", reason="too short")
+            self._started.pop(qid, None)
             await self.bus.show("repeat", partial=question)
             self._log(record)
             return qid
@@ -318,6 +328,7 @@ class Pipeline:
             record["error"] = run.error
         final = cardtext.parse(run.text + "\n", question)
         if final is None:
+            self._started.pop(qid, None)  # no live card will be acked; keep it out of the render stats
             if tentative is not None:  # Spark failed before the fallback deadline: still show the closest card
                 record["tentative"] = tentative.entry.id
                 record["tentative_ms"] = ms()

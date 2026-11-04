@@ -372,22 +372,29 @@ async def audio(ws: WebSocket) -> None:
         or it fails mid-talk, open a new one (three failures in a row and we give up)."""
         failures = 0
         while mic_open:
+            error: Exception | None = None
+            heard = False
             try:
                 async for event in transcribe(chunks(), key, keywords=workspace.keywords()):
+                    heard = True
                     failures = 0
                     if event.get("type") in ("transcript", "speechComplete"):
                         await ws.send_text(json.dumps(event))
                     await pipeline.on_event(event)
-                if mic_open:
-                    log.info("transcription session ended while the mic is on; reconnecting")
-            except Exception as error:
+            except Exception as caught:
+                error = caught
+                log.exception("transcription failed")
+            if not mic_open:
+                return
+            if error is not None or not heard:  # a session that closes without a word counts too
                 failures += 1
-                log.exception("transcription failed (%d in a row)", failures)
-                if failures >= 3 or not mic_open:
-                    with contextlib.suppress(Exception):
-                        await ws.send_text(json.dumps({"type": "error", "message": str(error)}))
-                    return
-                await asyncio.sleep(failures)
+            if failures >= 3:
+                message = str(error) if error else "Speech service keeps closing the session"
+                with contextlib.suppress(Exception):
+                    await ws.send_text(json.dumps({"type": "error", "message": message}))
+                return
+            log.info("transcription session ended while the mic is on; reconnecting")
+            await asyncio.sleep(0.2 + failures)
 
     task = asyncio.create_task(relay())
     try:
@@ -400,9 +407,15 @@ async def audio(ws: WebSocket) -> None:
         pass
     finally:
         mic_open = False
-        while not queue.empty():  # make room for the end marker even if the relay already stopped
-            queue.get_nowait()
-        queue.put_nowait(None)
+        if task.done():  # nobody is reading: just make room for the end marker
+            while not queue.empty():
+                queue.get_nowait()
+            queue.put_nowait(None)
+        else:  # let the relay send the last frames (the end of the last sentence) first
+            try:
+                await asyncio.wait_for(queue.put(None), 1)
+            except asyncio.TimeoutError:
+                task.cancel()
         await asyncio.wait({task}, timeout=5)
         task.cancel()  # a session that never closes must not keep feeding the pipeline
 

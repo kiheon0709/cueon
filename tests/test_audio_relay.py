@@ -26,6 +26,7 @@ def test_relay_reconnects_when_session_ends_early(monkeypatch):
             if isinstance(message, bytes):
                 frames += 1
                 if len(sessions) == 1 and frames == 2:
+                    await ws.send(json.dumps({"type": "transcript", "transcript": "so", "final": False, "audioProcessedMs": 160}))
                     await ws.close()  # the service ends the session while the mic keeps going
                     return
             elif json.loads(message).get("type") == "endStream":

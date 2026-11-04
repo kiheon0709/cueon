@@ -161,3 +161,36 @@ def test_question_detection_english_and_korean():
     assert looks_like_question("경쟁사 대비 뭐가 다른가요")
     assert not looks_like_question("오늘 발표 잘 들었습니다")
     assert not looks_like_question("thanks for the talk")
+
+
+def test_crashed_answer_does_not_leave_thinking_on_the_lens():
+    class Broken(SlowModel):
+        async def answer_stream(self, library, question):
+            yield "LEAD: x\n"
+
+    bus = Bus()
+    pipeline = Pipeline(bus, Broken(delay=0), workspace())
+    pipeline.listening = True
+
+    def boom(*_):
+        raise OSError("disk full")
+
+    pipeline._log = boom
+
+    async def run():
+        await pipeline.on_event({"type": "speechComplete", "transcript": "Who is your biggest competitor here?"})
+        await asyncio.sleep(0.05)
+
+    asyncio.run(run())
+    assert bus.last["state"] in ("card", "repeat")  # the live card was already shown before the crash
+
+
+def test_failed_live_answer_leaves_no_pending_render():
+    class FailingModel:
+        async def answer_stream(self, library, question):
+            raise RuntimeError("503")
+            yield ""
+
+    pipeline = Pipeline(Bus(), FailingModel(), workspace())
+    asyncio.run(pipeline.answer("does it stay fast on a weak conference wifi network"))
+    assert pipeline._started == {}

@@ -49,7 +49,7 @@ class Library(BaseModel):
     documents: list[Document] = []
 
     def add(self, doc: Document) -> None:
-        self.documents = [d for d in self.documents if d.alias != doc.alias] + [doc]
+        self.documents = [d for d in self.documents if d.alias.lower() != doc.alias.lower()] + [doc]
 
     def doc(self, alias: str) -> Document | None:
         return next((d for d in self.documents if d.alias.lower() == alias.lower()), None)

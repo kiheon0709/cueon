@@ -129,3 +129,9 @@ def test_one_failed_call_becomes_a_gap(library):
     result = asyncio.run(build_bank(Flaky(delay=0), library))
     assert any("Model call failed" in p for g in result.gaps for p in g.problems)
     assert result.bank.entries  # the cards that worked are kept
+
+
+def test_reupload_with_different_case_replaces(library):
+    library.add(parse_csv("a\n1\n", alias="deck", name="new.csv"))
+    assert [d.alias for d in library.documents].count("deck") == 1
+    assert not any(d.alias == "DECK" for d in library.documents)
