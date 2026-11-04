@@ -5,7 +5,7 @@ import pytest
 
 from hub.cards import Card
 from hub.models import FakeModel
-from hub.prep import build_bank, prepare_cards
+from hub.prep import build_bank, prepare_cards, spoken
 from hub.sources import Library, numbers_in, parse_csv, parse_file, render_pages
 from hub.verify import check_card
 
@@ -135,3 +135,7 @@ def test_reupload_with_different_case_replaces(library):
     library.add(parse_csv("a\n1\n", alias="deck", name="new.csv"))
     assert [d.alias for d in library.documents].count("deck") == 1
     assert not any(d.alias == "DECK" for d in library.documents)
+
+
+def test_only_spoken_phrasings_are_matched():
+    assert spoken(["1.5 s p50? DECK p.6", "Mic off?", "How fast does a card show up?"]) == ["How fast does a card show up?"]

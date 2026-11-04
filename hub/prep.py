@@ -6,6 +6,7 @@ presenter reviews in the console ("the material doesn't support this").
 """
 
 import asyncio
+import re
 from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel
@@ -18,6 +19,7 @@ from hub.verify import Judge, save_card
 
 MAX_ATTEMPTS = 3
 PARALLEL = 4
+SHORTHAND = re.compile(r"\bp\.\s*\d+")
 
 # (question, feedback from the last failed attempt) -> card, or None if the material can't answer it
 WriteCard = Callable[[str, list[str]], Awaitable[Card | None]]
@@ -75,6 +77,11 @@ class BankResult(BaseModel):
     attempts: dict[str, int]
 
 
+def spoken(variants: list[str]) -> list[str]:
+    """Only phrasings someone could really say: cited or two-word shorthand would just match by accident."""
+    return [v for v in variants if not SHORTHAND.search(v) and len(v.split()) >= 3]
+
+
 async def build_bank(model: Model, library: Library, limit: int = 12, progress: Progress | None = None) -> BankResult:
     async def report(text: str) -> None:
         if progress:
@@ -106,6 +113,8 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
         attempts[question] = used
         if card is None:
             gaps.append(Gap(question=question, problems=problems))
+        else:
+            card.question = question  # match on the spoken question, not the writer's shorthand
         return card, problems
 
     parents = await asyncio.gather(*(one(plan.question) for plan in plans))
@@ -114,11 +123,11 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
         done += 1
         if card is None:
             continue
-        entry = bank.add(plan.qtype, card, plan.variants, audience=plan.audience)
+        entry = bank.add(plan.qtype, card, spoken(plan.variants), audience=plan.audience)
         children = await asyncio.gather(*(one(f.question) for f in plan.follow_ups))
         for follow, (child, _) in zip(plan.follow_ups, children):
             if child is not None:
-                bank.add(plan.qtype, child, follow.variants, parent=entry.id, audience=plan.audience)
+                bank.add(plan.qtype, child, spoken(follow.variants), parent=entry.id, audience=plan.audience)
         await report(f"Cards {done}/{len(plans)}")
 
     await report(f"Done: {len(bank.entries)} cards, {len(gaps)} gaps")

@@ -86,7 +86,11 @@ the three. Include the hard ones: weaknesses, competitors, numbers, risks, what'
 - audience: "investor", "technical", or "general"
 - question: the canonical question
 - variants: 4 different ways a person might actually say it out loud (short, spoken style)
-- follow_ups: up to 2 likely follow-up questions, each with 3 spoken variants"""
+- follow_ups: up to 2 likely follow-up questions, each with 3 spoken variants
+
+The lens style above is for cards, not for this list. Write every question and variant as a complete
+sentence, exactly as a person would say it out loud in the room (for example "How fast does a card
+show up after someone asks?"). Never add page citations or shorthand to them."""
 
 CARD_TASK = """Write a cue card that answers this question from the material.
 Question: {question}

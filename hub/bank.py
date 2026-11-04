@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from hub.cards import Card
 from hub.similarity import cosine, features
 
-MATCH_THRESHOLD = 0.42  # below this the live path writes a card on the spot
+MATCH_THRESHOLD = 0.62  # below this the live path writes a card on the spot
 TENTATIVE_THRESHOLD = 0.2  # close enough to show while Spark is still writing
 FOLLOW_UP_BONUS = 0.08
 
