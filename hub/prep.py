@@ -19,6 +19,7 @@ from hub.verify import Judge, save_card
 
 MAX_ATTEMPTS = 3
 PARALLEL = 4
+Review = Callable[[str, Card], Awaitable[list[str]]]
 SHORTHAND = re.compile(r"\bp\.\s*\d+")
 
 # (question, feedback from the last failed attempt) -> card, or None if the material can't answer it
@@ -40,7 +41,7 @@ class PrepResult(BaseModel):
 
 
 async def write_checked(
-    question: str, library: Library, write_card: WriteCard, judge: Judge | None = None
+    question: str, library: Library, write_card: WriteCard, judge: Judge | None = None, review: Review | None = None
 ) -> tuple[Card | None, list[str], int]:
     """Write one card and keep revising it until it passes. Returns (card, problems, attempts)."""
     saved: list[Card] = []
@@ -51,7 +52,15 @@ async def write_checked(
             return None, ["The material has no answer for this question."], attempt
         feedback = await save_card(card, library, saved, judge)
         if not feedback:
-            return saved[0], [], attempt
+            # A weak card is improved while tries remain, but never becomes a gap: it's still true.
+            try:
+                weak = await review(question, card) if review and attempt < MAX_ATTEMPTS else []
+            except Exception:  # a review that fails must not cost a card that passed its checks
+                weak = []
+            if not weak:
+                return saved[0], [], attempt
+            saved.clear()
+            feedback = weak
     return None, feedback, MAX_ATTEMPTS
 
 
@@ -99,6 +108,9 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
     def judge(card: Card):
         return model.judge(library, card)
 
+    def review(question: str, card: Card):
+        return model.review(library, question, card)
+
     bank = Bank()
     gaps: list[Gap] = []
     attempts: dict[str, int] = {}
@@ -107,7 +119,7 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
     async def one(question: str) -> tuple[Card | None, list[str]]:
         async with gate:
             try:
-                card, problems, used = await write_checked(question, library, write, judge)
+                card, problems, used = await write_checked(question, library, write, judge, review)
             except Exception as error:  # one failed call becomes a gap; the rest of prep goes on
                 card, problems, used = None, [f"Model call failed: {error}"], MAX_ATTEMPTS
         attempts[question] = used
@@ -128,7 +140,7 @@ async def build_bank(model: Model, library: Library, limit: int = 12, progress: 
         for follow, (child, _) in zip(plan.follow_ups, children):
             if child is not None:
                 bank.add(plan.qtype, child, spoken(follow.variants), parent=entry.id, audience=plan.audience)
-        await report(f"Cards {done}/{len(plans)}")
+        await report(f"Question type {done} of {len(plans)}, {len(bank.entries)} cards so far")
 
     await report(f"Done: {len(bank.entries)} cards, {len(gaps)} gaps")
     return BankResult(bank=bank, gaps=gaps, attempts=attempts)

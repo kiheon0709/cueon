@@ -5,7 +5,8 @@ import pytest
 
 from hub.cards import Card
 from hub.models import FakeModel
-from hub.prep import build_bank, prepare_cards, spoken
+from hub.bank import question_parts
+from hub.prep import build_bank, prepare_cards, spoken, write_checked
 from hub.sources import Library, numbers_in, parse_csv, parse_file, render_pages
 from hub.verify import check_card
 
@@ -121,6 +122,9 @@ def test_one_failed_call_becomes_a_gap(library):
     from hub.models import FakeModel
 
     class Flaky(FakeModel):
+        async def review(self, library, question, card):
+            return []
+
         async def judge(self, library, card):
             if "pricing" in card.lead.lower() or "speech" in card.lead.lower():
                 raise RuntimeError("503 from the API")
@@ -139,3 +143,27 @@ def test_reupload_with_different_case_replaces(library):
 
 def test_only_spoken_phrasings_are_matched():
     assert spoken(["1.5 s p50? DECK p.6", "Mic off?", "How fast does a card show up?"]) == ["How fast does a card show up?"]
+
+
+def test_long_question_is_also_matched_sentence_by_sentence():
+    parts = question_parts("You have no users yet. How would you get your first hundred customers?")
+    assert parts[1:] == ["You have no users yet", "How would you get your first hundred customers"]
+    assert question_parts("Do you store audio?") == ["Do you store audio?"]
+
+
+def test_weak_card_is_improved_but_never_becomes_a_gap(library):
+    good = Card(question="q", lead="Short answer", points=[], source=None)
+    drafts = []
+
+    async def write(question, feedback):
+        drafts.append(list(feedback))
+        return good
+
+    async def review(question, card):
+        return ["Weak answer: add evidence"]
+
+    source = library.documents[0].alias + " p.1"
+    good.source = source
+    card, problems, used = asyncio.run(write_checked("q", library, write, None, review))
+    assert card is good and problems == [] and used == 3
+    assert drafts[1] == ["Weak answer: add evidence"]

@@ -12,6 +12,7 @@ from hub.sources import Library, parse_file
 from tests.fake_openai import make_server
 
 ANSWERS = {
+    "review": {"weaknesses": []},
     "questions": {"types": [{"qtype": "latency", "question": "How fast is it?", "variants": ["What's the latency?"],
                              "follow_ups": [{"question": "And p95?", "variants": ["What about the worst case?"]}]}]},
     "card": {"answerable": True, "lead": "Card in 1.4s", "points": ["p95 2.3s"], "source": "DECK p.2"},
@@ -51,7 +52,7 @@ def test_prep_requests_follow_the_cookbook(library):
     assert len({r["prompt_cache_key"] for r in requests}) == 1
     assert len({r["messages"][0]["content"] for r in requests}) == 1
     assert requests[0]["messages"][0]["role"] == "developer" and "## DECK p.2" in requests[0]["messages"][0]["content"]
-    assert {r["response_format"]["json_schema"]["name"] for r in requests} == {"questions", "card", "judge"}
+    assert {r["response_format"]["json_schema"]["name"] for r in requests} == {"questions", "card", "judge", "review"}
     assert model.cache_stats[0]["cached"] == 4800
 
 

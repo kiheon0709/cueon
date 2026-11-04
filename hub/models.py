@@ -56,6 +56,8 @@ class Model(Protocol):
 
     async def judge(self, library: Library, card: Card) -> list[str]: ...
 
+    async def review(self, library: Library, question: str, card: Card) -> list[str]: ...
+
     def answer_stream(self, library: Library, question: str) -> AsyncIterator[str]: ...
 
     async def page_notes(self, library: Library) -> list[PageNotes]: ...
@@ -81,7 +83,8 @@ QUESTIONS_TASK = """List the questions the audience or a judging panel is most l
 Think from three seats in the room: an investor (market, business model, competition, traction),
 a technical judge (how it works, latency, accuracy, limits), and the general audience (who it's for,
 privacy, what it feels like to use). Give at most {limit} question types, most likely first, mixing
-the three. Include the hard ones: weaknesses, competitors, numbers, risks, what's next. For each type give:
+the three. Include the hard ones: weaknesses, competitors, numbers, risks, what's next, and the sharp,
+multi-part questions an experienced investor asks to test a founder. For each type give:
 - qtype: a short slug (e.g. "latency", "competitors")
 - audience: "investor", "technical", or "general"
 - question: the canonical question
@@ -92,14 +95,25 @@ The lens style above is for cards, not for this list. Write every question and v
 sentence, exactly as a person would say it out loud in the room (for example "How fast does a card
 show up after someone asks?"). Never add page citations or shorthand to them."""
 
-CARD_TASK = """Write a cue card that answers this question from the material.
+CARD_TASK = """Write the cue card the presenter glances at just before answering this question out loud.
 Question: {question}
 
-- lead: the answer itself, at most 10 words
-- points: up to 3 supporting points, at most 8 words each
+- lead: what to say first, in plain spoken words, at most 12 words. Answer exactly what was asked and
+  name the specific thing (a number, a name, a step). Don't restate the topic or use a slogan.
+- points: up to 3, at most 10 words each, strongest first. Give concrete evidence from the material,
+  then the answer to any other part of the question or the objection behind it.
 - source: the one page that supports the card, as "<alias> p.<n>"
+A bare fact is never enough. When the honest answer is weak (no users, no revenue), pair it with the
+strongest real evidence in the material and the next step, as a confident founder would.
 Every number on the card must appear on the cited page.
 If the material can't answer the question, set answerable to false."""
+
+REVIEW_TASK = """A sharp investor asked: "{question}"
+The presenter's cue card says:
+{card}
+Would this card let the presenter give a strong, specific answer? List concrete weaknesses, each as a
+fix: it restates the topic, skips part of the question, gives a bare fact with no evidence or next step,
+or misses stronger evidence that the material has. Return an empty list if it's good."""
 
 FEEDBACK = "\n\nYour last draft was rejected. Fix these problems:\n{problems}"
 
@@ -107,13 +121,15 @@ JUDGE_TASK = """Check this cue card against page {source} of the material, and o
 Card: {card}
 List every statement on the card that page does not support. Return an empty list if everything is supported."""
 
-LIVE_TASK = """Someone in the audience just asked: "{question}"
-Answer as a cue card in exactly this plain-text format, nothing else:
-LEAD: <the answer, at most 10 words>
-- <point, at most 8 words>
-- <point, at most 8 words>
+LIVE_TASK = """An investor or judge just asked the presenter: "{question}"
+Write the cue card to glance at before answering, in exactly this plain text, nothing else:
+LEAD: <what to say first, spoken words, at most 12 words, naming the specific thing>
+- <strongest evidence from the material, with a number or name, at most 10 words>
+- <the other part of the question, or the answer to the objection, at most 10 words>
 SOURCE: <alias> p.<n>
-If the material doesn't cover it, write "LEAD: Not in your material" and one point on how to respond honestly."""
+Reason from the material; label hypotheses. Never restate the topic or use a slogan.
+If the material can't support an answer, leave out SOURCE and suggest how a sharp founder would reason
+about it, with no invented facts or numbers."""
 
 NOTES_TASK = """For every page of the main document ({alias}), write the notes the presenter glances at while showing it:
 - page: the page number
@@ -173,6 +189,13 @@ CARD_SCHEMA = {
         "source": {"type": "string"},
     },
     "required": ["answerable", "lead", "points", "source"],
+    "additionalProperties": False,
+}
+
+REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {"weaknesses": {"type": "array", "items": {"type": "string"}}},
+    "required": ["weaknesses"],
     "additionalProperties": False,
 }
 
@@ -330,6 +353,11 @@ class SparkModel:
             return None
         return Card(question=question, lead=data["lead"], points=data["points"], source=data["source"])
 
+    async def review(self, library: Library, question: str, card: Card) -> list[str]:
+        shown = cardtext.format(card).strip().replace("\n", " | ")
+        data = await self._json(library, "review", REVIEW_TASK.format(question=question, card=shown), REVIEW_SCHEMA, "low")
+        return [f"Weak answer: {w}" for w in data.get("weaknesses", [])]
+
     async def judge(self, library: Library, card: Card) -> list[str]:
         shown = cardtext.format(card).strip().replace("\n", " | ")
         data = await self._json(library, "judge", JUDGE_TASK.format(source=card.source, card=shown), JUDGE_SCHEMA, "low")
@@ -472,6 +500,9 @@ class FakeModel:
             points=[_clip(line, 8) for line in lines[1:4]],
             source=f"{alias} p.{page.number}",
         )
+
+    async def review(self, library: Library, question: str, card: Card) -> list[str]:
+        return []
 
     async def judge(self, library: Library, card: Card) -> list[str]:
         return []

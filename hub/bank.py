@@ -4,6 +4,7 @@ Matching is local and fast (no model call). A matched card is shown exactly as p
 card is shown, its follow-ups get priority, because the next question usually builds on it.
 """
 
+import re
 import uuid
 from pathlib import Path
 
@@ -15,6 +16,12 @@ from hub.similarity import cosine, features
 MATCH_THRESHOLD = 0.62  # below this the live path writes a card on the spot
 TENTATIVE_THRESHOLD = 0.2  # close enough to show while Spark is still writing
 FOLLOW_UP_BONUS = 0.08
+
+
+def question_parts(question: str) -> list[str]:
+    """The whole question, plus each sentence of a long one: it often leads with context."""
+    sentences = [part.strip() for part in re.split(r"[.?!]+", question) if len(part.split()) >= 4]
+    return [question, *sentences] if len(sentences) > 1 else [question]
 
 
 class Entry(BaseModel):
@@ -56,13 +63,14 @@ class Bank(BaseModel):
 
     def rank(self, question: str, last_shown: str | None = None, limit: int = 3) -> list[Match]:
         """Entries ordered by how well their best phrasing matches the question."""
-        heard = features(question)
+        heard = [features(part) for part in question_parts(question)]
         ranked: list[Match] = []
         for entry in self.entries:
             bonus = FOLLOW_UP_BONUS if last_shown and entry.parent == last_shown else 0.0
             best: Match | None = None
             for phrase in [entry.question, *entry.variants]:
-                score = cosine(heard, features(phrase)) + bonus
+                said = features(phrase)
+                score = max(cosine(part, said) for part in heard) + bonus
                 if best is None or score > best.score:
                     best = Match(entry=entry, score=score, phrase=phrase)
             if best:
