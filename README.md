@@ -1,6 +1,6 @@
 # Cueon
 
-Live Q&A cue cards for presenters, shown on Meta Ray-Ban Display.
+A presenter's assistant on Meta Ray-Ban Display: it prepares answers from your own material, follows your slides while you talk, and puts the right card on your lens during Q&A.
 
 Cueon reads everything you bring to a talk (slides, business plan, papers, data) before you go on
 stage, predicts the questions you'll get, and writes a short, checked answer card for each. During
