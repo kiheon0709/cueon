@@ -2,12 +2,34 @@
 
 A presenter's assistant on Meta Ray-Ban Display: it prepares answers from your own material, follows your slides while you talk, and puts the right card on your lens during Q&A.
 
-Cueon reads everything you bring to a talk (slides, business plan, papers, data) before you go on
-stage, predicts the questions you'll get, and writes a short, checked answer card for each. During
-Q&A it listens when you ask it to, finds the right card, and puts it on the glasses lens. If nothing
-fits, Muse Spark writes one on the spot from your material, labelled as live. If your material can't
-support an answer, it suggests how to reason about it, labelled as not from your material, with no
-invented facts. While you present, it follows your slides and tells you when you skipped a point.
+**[Watch the 3-minute demo](https://youtu.be/Jssq466FBfc)**
+
+![The lens during Q&A, with the answer, its source and how it was written](docs/images/lens.jpg)
+
+*From the demo. The room is an AI-generated image; the card is Cueon's real output from a run on Muse Spark and Muse Voice Transcribe. Not filmed on a device.*
+
+## Why I built it
+
+At my startup's IR pitch, I'd prepared everything. Then an investor asked a hard question, my mind went white, and I felt I got across maybe 10% of what I'd prepared. I talked to about 30 people in my startup club and at meetups, and about 20 CS master's and PhD students who present at conferences. Many described the same freeze, and most told me they'd use this. That's stated intent: there are no paying users yet.
+
+## What it does
+
+- **Before the talk:** upload your deck, plan, docs and data. Muse Spark predicts what investors, judges and the audience will ask, then writes a short card for each question. A card is saved only after its numbers are found on the page it cites and a judge model has checked its claims. If your material can't support an answer, you see that the night before.
+- **While you present:** the lens shows each slide's key points. Cueon follows your slides from what you say and tells you if you skipped a point. With a talk length set, it also shows the time left and a shorter version when time runs low.
+- **During Q&A:** a prepared question gets its checked card right away, unchanged. A new one gets a card from Muse Spark, labelled as live. If your material has nothing to support an answer, the lens says so and suggests how to reason through it, with no invented facts.
+
+![Prepared cards in the console, each with the page it cites](docs/images/cards.jpg)
+
+## Measured
+
+Real models on a laptop, three spoken takes of five long questions. Time runs from the end of the question. [Full results](docs/results.md).
+
+| Path | Card on the lens |
+|---|---|
+| Prepared question | 0.6 to 0.7 s |
+| New question | 4.8 to 9.4 s, median 5.8 s |
+
+New questions show a stalling line right away and the closest prepared card when one is close. They don't meet our 1.5 s target yet.
 
 Built for the Meta Global AI Developer Hackathon 2026 (Indie Developer track, Build for Your World).
 
